@@ -120,18 +120,22 @@ function toImportRequest(op: Operation): string {
         toImportRequestObject(op.object),
       ].join("\n");
 
-    case DeleteObject:
+    case DeleteObject: {
       // return [
       //   "op_code: delete",
       //   toImportRequestObject(op.object)
       // ].join("\n");
       // // Type error: Property 'object' does not exist on type ...
+      const obj: DirectoryObject = {
+        type: op.objectType,
+        id: op.objectId,
+        properties: {},
+      };
       return [
         "op_code: delete",
-        "kind: object",
-        "type: " + op.objectType,
-        "id: " + op.objectId,
+        toImportRequestObject(obj),
       ].join("\n");
+    }
 
     case CreateRelation:
       return [
@@ -145,10 +149,10 @@ function toImportRequest(op: Operation): string {
         toImportRequestRelation(op.relation),
       ].join("\n");
 
-    // deno-lint-ignore no-case-declarations
-    default:
+    default: {
       const _exhaustiveCheck: never = op;
       return _exhaustiveCheck;
+    }
   }
 }
 
@@ -158,7 +162,7 @@ function toImportRequests(ops: Operation[]): string {
 
 function main() {
   const decoder = new TextDecoder("utf-8");
-  const bytes = Deno.readFileSync("data.json");
+  const bytes = Deno.readFileSync("in.json");
 
   const fileSchema = z.object({
     operations: z.array(Operation),
