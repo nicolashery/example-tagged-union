@@ -1,0 +1,49 @@
+{
+  "operations": [
+    {
+      "type": "create_object",
+      "object": {
+        "type": "user",
+        "id": "b478779c-5e5e-4cd7-9bf3-1405326be526",
+        "properties": {
+          "email": "alice@example.com"
+        }
+      }
+    },
+    {
+      "type": "update_object",
+      "object": {
+        "type": "group",
+        "id": "2ca6785b-a2ef-4a62-a5f6-5e2314ae59ca",
+        "properties": {
+          "name": "admins"
+        }
+      }
+    },
+    {
+      "type": "delete_object",
+      "objectType": "group",
+      "objectId": "c9b58dd9-b4f6-4325-ba52-3d8d70857363"
+    },
+    {
+      "type": "create_relation",
+      "relation": {
+        "objectType": "group",
+        "objectId": "7910720c-9789-4dd3-83a4-4c65eebd82b3",
+        "relation": "member",
+        "subjectType": "user",
+        "subjectId": "f32756fd-6a92-4034-8b86-c92cc9d9719f"
+      }
+    },
+    {
+      "type": "delete_relation",
+      "relation": {
+        "objectType": "group",
+        "objectId": "c3e65031-7455-45c8-acbd-59ec59d3e769",
+        "relation": "member",
+        "subjectType": "user",
+        "subjectId": "f50fd4aa3-d632-46d6-92da-21bcc1391287"
+      }
+    }
+  ]
+}
