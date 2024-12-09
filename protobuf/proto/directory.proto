@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+message DirectoryObject {
+  string type = 1;
+  string id = 2;
+  map<string, string> properties = 3;
+}
+
+message DirectoryRelation {
+  string object_type = 1;
+  string object_id = 2;
+  string relation = 3;
+  string subject_type = 4;
+  string subject_id = 5;
+}
+
+enum OperationType {
+  OPERATION_TYPE_UNSPECIFIED = 0;
+  OPERATION_TYPE_CREATE_OBJECT = 1;
+  OPERATION_TYPE_UPDATE_OBJECT = 2;
+  OPERATION_TYPE_DELETE_OBJECT = 3;
+  OPERATION_TYPE_CREATE_RELATION = 4;
+  OPERATION_TYPE_DELETE_RELATION = 5;
+}
+
+message CreateObjectOperation {
+  OperationType type = 1;
+  DirectoryObject object = 2;
+}
+
+message UpdateObjectOperation {
+  OperationType type = 1;
+  DirectoryObject object = 2;
+}
+
+message DeleteObjectOperation {
+  OperationType type = 1;
+  string object_type = 2;
+  string object_id = 3;
+}
+
+message CreateRelationOperation {
+  OperationType type = 1;
+  DirectoryRelation relation = 2;
+}
+
+message DeleteRelationOperation {
+  OperationType type = 1;
+  DirectoryRelation relation = 2;
+}
+
+message Operation {
+  oneof value {
+    CreateObjectOperation create_object = 1;
+    UpdateObjectOperation update_object = 2;
+    DeleteObjectOperation delete_object = 3;
+    CreateRelationOperation create_relation = 4;
+    DeleteRelationOperation delete_relation = 5;
+  }
+}

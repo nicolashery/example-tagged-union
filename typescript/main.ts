@@ -126,10 +126,6 @@ type Operation =
   | CreateRelationOperation
   | DeleteRelationOperation;
 
-type ApplyOperationRequest = {
-  operation: Operation;
-};
-
 function toImportRequestObject(obj: DirectoryObject): string {
   const result = [
     "kind: object",
