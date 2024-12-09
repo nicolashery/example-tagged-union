@@ -1,0 +1,28 @@
+cabal-version:      3.0
+name:               example
+version:            0.1.0.0
+
+common options
+    build-depends: base ^>=4.20.0.0
+    ghc-options:
+        -Wall
+        -Wcompat
+        -Widentities
+        -Wincomplete-uni-patterns
+        -Wincomplete-record-updates
+        -Wredundant-constraints
+        -Wmissing-export-lists
+        -Wpartial-fields
+        -Wunused-packages
+    default-language: GHC2024
+    default-extensions:
+        , OverloadedStrings
+
+executable example
+    import:           options
+    main-is:          Main.hs
+    hs-source-dirs:   .
+    build-depends:
+        , aeson
+        , bytestring
+        , text
