@@ -6,7 +6,12 @@ const DirectoryObject = z.object({
   properties: z.record(z.string(), z.string()),
 });
 
-type DirectoryObject = z.infer<typeof DirectoryObject>;
+// type DirectoryObject = z.infer<typeof DirectoryObject>;
+type DirectoryObject = {
+  type: string;
+  id: string;
+  properties: Record<string, string>;
+};
 
 const DirectoryRelation = z
   .object({
@@ -17,7 +22,14 @@ const DirectoryRelation = z
     subjectId: z.string(),
   });
 
-type DirectoryRelation = z.infer<typeof DirectoryRelation>;
+// type DirectoryRelation = z.infer<typeof DirectoryRelation>;
+type DirectoryRelation = {
+  objectType: string;
+  objectId: string;
+  relation: string;
+  subjectType: string;
+  subjectId: string;
+};
 
 const OperationType = z.enum([
   "create_object",
@@ -27,7 +39,13 @@ const OperationType = z.enum([
   "delete_relation",
 ]);
 
-type OperationType = z.infer<typeof OperationType>;
+// type OperationType = z.infer<typeof OperationType>;
+type OperationType =
+  | "create_object"
+  | "update_object"
+  | "delete_object"
+  | "create_relation"
+  | "delete_relation";
 
 const CreateObject = OperationType.enum.create_object;
 const UpdateObject = OperationType.enum.update_object;
@@ -40,14 +58,22 @@ const CreateObjectOperation = z.object({
   object: DirectoryObject,
 });
 
-type CreateObjectOperation = z.infer<typeof CreateObjectOperation>;
+// type CreateObjectOperation = z.infer<typeof CreateObjectOperation>;
+type CreateObjectOperation = {
+  type: "create_object";
+  object: DirectoryObject;
+};
 
 const UpdateObjectOperation = z.object({
   type: z.literal(UpdateObject),
   object: DirectoryObject,
 });
 
-type UpdateObjectOperation = z.infer<typeof UpdateObjectOperation>;
+// type UpdateObjectOperation = z.infer<typeof UpdateObjectOperation>;
+type UpdateObjectOperation = {
+  type: "update_object";
+  object: DirectoryObject;
+};
 
 const DeleteObjectOperation = z.object({
   type: z.literal(DeleteObject),
@@ -55,21 +81,34 @@ const DeleteObjectOperation = z.object({
   objectId: z.string(),
 });
 
-type DeleteObjectOperation = z.infer<typeof DeleteObjectOperation>;
+// type DeleteObjectOperation = z.infer<typeof DeleteObjectOperation>;
+type DeleteObjectOperation = {
+  type: "delete_object";
+  objectType: string;
+  objectId: string;
+};
 
 const CreateRelationOperation = z.object({
   type: z.literal(CreateRelation),
   relation: DirectoryRelation,
 });
 
-type CreateRelationOperation = z.infer<typeof CreateRelationOperation>;
+// type CreateRelationOperation = z.infer<typeof CreateRelationOperation>;
+type CreateRelationOperation = {
+  type: "create_relation";
+  relation: DirectoryRelation;
+};
 
 const DeleteRelationOperation = z.object({
   type: z.literal(DeleteRelation),
   relation: DirectoryRelation,
 });
 
-type DeleteRelationOperation = z.infer<typeof DeleteRelationOperation>;
+// type DeleteRelationOperation = z.infer<typeof DeleteRelationOperation>;
+type DeleteRelationOperation = {
+  type: "delete_relation";
+  relation: DirectoryRelation;
+};
 
 const Operation = z.discriminatedUnion("type", [
   CreateObjectOperation,
@@ -79,7 +118,17 @@ const Operation = z.discriminatedUnion("type", [
   DeleteRelationOperation,
 ]);
 
-type Operation = z.infer<typeof Operation>;
+// type Operation = z.infer<typeof Operation>;
+type Operation =
+  | CreateObjectOperation
+  | UpdateObjectOperation
+  | DeleteObjectOperation
+  | CreateRelationOperation
+  | DeleteRelationOperation;
+
+type ApplyOperationRequest = {
+  operation: Operation;
+};
 
 function toImportRequestObject(obj: DirectoryObject): string {
   const result = [
