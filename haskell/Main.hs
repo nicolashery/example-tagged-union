@@ -1,9 +1,12 @@
-module Main (main) where
+module Main (main, test, run) where
 
-import Data.Aeson (FromJSON, ToJSON, eitherDecode)
-import Data.ByteString.Lazy qualified as BL
+import Data.Aeson (FromJSON, ToJSON (toJSON), Value, eitherDecode)
+import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.ByteString.Lazy qualified as LBS
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.Text.Encoding qualified as E
+import Data.Text.IO qualified as TIO
 import GHC.Generics (Generic)
 
 data DirectoryObject = DirectoryObject
@@ -158,10 +161,80 @@ toImportRequest op = case op of
 toImportRequests :: [Operation] -> Text
 toImportRequests ops = T.intercalate "\n\n" (map toImportRequest ops)
 
-main :: IO ()
-main = do
-  contents <- BL.readFile "data.json"
+exampleOperations :: [Operation]
+exampleOperations =
+  [ CreateObjectOp
+      CreateObjectOperation
+        { opType = CreateObject,
+          object =
+            DirectoryObject
+              { objectType = "user",
+                objectId = "b478779c-5e5e-4cd7-9bf3-1405326be526",
+                properties = [("email", "alice@example.com")]
+              }
+        },
+    UpdateObjectOp
+      UpdateObjectOperation
+        { opType = UpdateObject,
+          object =
+            DirectoryObject
+              { objectType = "group",
+                objectId = "2ca6785b-a2ef-4a62-a5f6-5e2314ae59ca",
+                properties = [("name", "admins")]
+              }
+        },
+    DeleteObjectOp
+      DeleteObjectOperation
+        { opType = DeleteObject,
+          objectType = "group",
+          objectId = "c9b58dd9-b4f6-4325-ba52-3d8d70857363"
+        },
+    CreateRelationOp
+      CreateRelationOperation
+        { opType = CreateRelation,
+          relation =
+            DirectoryRelation
+              { objectType = "group",
+                objectId = "7910720c-9789-4dd3-83a4-4c65eebd82b3",
+                relation = "member",
+                subjectType = "user",
+                subjectId = "f32756fd-6a92-4034-8b86-c92cc9d9719f"
+              }
+        },
+    DeleteRelationOp
+      DeleteRelationOperation
+        { opType = DeleteRelation,
+          relation =
+            DirectoryRelation
+              { objectType = "group",
+                objectId = "c3e65031-7455-45c8-acbd-59ec59d3e769",
+                relation = "member",
+                subjectType = "user",
+                subjectId = "f50fd4aa3-d632-46d6-92da-21bcc1391287"
+              }
+        }
+  ]
+
+lsbToText :: LBS.ByteString -> T.Text
+lsbToText = E.decodeUtf8 . LBS.toStrict
+
+jsonToText :: Value -> T.Text
+jsonToText = lsbToText . encodePretty
+
+prettyPrintJson :: Value -> IO ()
+prettyPrintJson = TIO.putStrLn . jsonToText
+
+test :: IO ()
+test = do
+  prettyPrintJson $ toJSON exampleOperations
+
+run :: IO ()
+run = do
+  contents <- LBS.readFile "data.json"
   let decodeResult = eitherDecode contents :: Either String [Operation]
   case decodeResult of
     Left err -> putStrLn $ "Error parsing JSON: " ++ err
     Right operations -> putStrLn $ T.unpack $ toImportRequests operations
+
+main :: IO ()
+main = test

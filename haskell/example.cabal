@@ -16,6 +16,7 @@ common options
         -Wunused-packages
     default-language: GHC2024
     default-extensions:
+        , DuplicateRecordFields
         , OverloadedStrings
 
 executable example
@@ -24,5 +25,6 @@ executable example
     hs-source-dirs:   .
     build-depends:
         , aeson
+        , aeson-pretty
         , bytestring
         , text
