@@ -1,4 +1,4 @@
-syntax = "proto3";
+edition = "2023";
 
 message DirectoryObject {
   string type = 1;
@@ -49,8 +49,8 @@ message DeleteRelationOperation {
   DirectoryRelation relation = 2;
 }
 
-message Operation {
-  oneof value {
+message ImportRequest {
+  oneof operation {
     CreateObjectOperation create_object = 1;
     UpdateObjectOperation update_object = 2;
     DeleteObjectOperation delete_object = 3;
