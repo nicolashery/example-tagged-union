@@ -138,6 +138,17 @@ instance FromJSON Operation where
 instance ToJSON Operation where
   toJSON = defaultToJSON "Operation"
 
+data BatchRequest = BatchRequest
+  { batchRequestOperations :: [Operation]
+  }
+  deriving (Show, Generic)
+
+instance FromJSON BatchRequest where
+  parseJSON = defaultParseJSON "batchRequest"
+
+instance ToJSON BatchRequest where
+  toJSON = defaultToJSON "batchRequest"
+
 toImportRequestObject :: DirectoryObject -> Text
 toImportRequestObject obj =
   let props = map (\(k, v) -> k <> ": " <> v) (Map.toList $ directoryObjectProperties obj)
@@ -273,15 +284,15 @@ prettyPrintJson = TIO.putStrLn . jsonToText
 
 test :: IO ()
 test = do
-  prettyPrintJson $ toJSON exampleOperations
+  prettyPrintJson $ toJSON $ BatchRequest {batchRequestOperations = exampleOperations}
 
 run :: IO ()
 run = do
   contents <- LBS.readFile "in.json"
-  let decodeResult = eitherDecode contents :: Either String [Operation]
+  let decodeResult = eitherDecode contents :: Either String BatchRequest
   case decodeResult of
     Left err -> putStrLn $ "Error parsing JSON: " ++ err
-    Right operations -> putStrLn $ T.unpack $ toImportRequests operations
+    Right request -> putStrLn $ T.unpack $ toImportRequests $ batchRequestOperations request
 
 main :: IO ()
 main = run

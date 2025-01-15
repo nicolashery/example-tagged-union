@@ -126,6 +126,15 @@ type Operation =
   | CreateRelationOperation
   | DeleteRelationOperation;
 
+const BatchRequest = z.object({
+  operations: z.array(Operation),
+});
+
+// type BatchRequest = z.infer<typeof BatchRequest>;
+type BatchRequest = {
+  operations: Operation[];
+};
+
 function toImportRequestObject(obj: DirectoryObject): string {
   const result = [
     "kind: object",
@@ -209,12 +218,9 @@ function main() {
   const decoder = new TextDecoder("utf-8");
   const bytes = Deno.readFileSync("in.json");
 
-  const fileSchema = z.object({
-    operations: z.array(Operation),
-  });
-  const data = fileSchema.parse(JSON.parse(decoder.decode(bytes)));
+  const request = BatchRequest.parse(JSON.parse(decoder.decode(bytes)));
 
-  const result = toImportRequests(data.operations);
+  const result = toImportRequests(request.operations);
 
   console.log(result);
 }

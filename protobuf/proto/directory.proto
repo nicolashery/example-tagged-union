@@ -49,7 +49,7 @@ message DeleteRelationOperation {
   DirectoryRelation relation = 2;
 }
 
-message ImportRequest {
+message Request {
   oneof operation {
     CreateObjectOperation create_object = 1;
     UpdateObjectOperation update_object = 2;
