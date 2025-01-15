@@ -163,32 +163,32 @@ toImportRequest operation = case operation of
   OperationCreateObject op ->
     T.intercalate
       "\n"
-      [ "op_code: " <> jsonToText (toJSON OperationTypeCreateObject),
+      [ "op_code: create_object",
         toImportRequestObject (createObjectOperationObject op)
       ]
   OperationUpdateObject op ->
     T.intercalate
       "\n"
-      [ "op_code: " <> jsonToText (toJSON OperationTypeUpdateObject),
+      [ "op_code: update_object",
         toImportRequestObject (updateObjectOperationObject op)
       ]
   OperationDeleteObject op ->
     T.intercalate
       "\n"
-      [ "op_code: " <> jsonToText (toJSON OperationTypeDeleteObject),
+      [ "op_code: delete_object",
         "type: " <> (deleteObjectOperationObjectType op),
         "id: " <> (deleteObjectOperationObjectId op)
       ]
   OperationCreateRelation op ->
     T.intercalate
       "\n"
-      [ "op_code: " <> jsonToText (toJSON OperationTypeCreateRelation),
+      [ "op_code: create_relation",
         toImportRequestRelation (createRelationOperationRelation op)
       ]
   OperationDeleteRelation op ->
     T.intercalate
       "\n"
-      [ "op_code: " <> jsonToText (toJSON OperationTypeDeleteRelation),
+      [ "op_code: delete_relation",
         toImportRequestRelation (deleteRelationOperationRelation op)
       ]
 
@@ -277,11 +277,11 @@ test = do
 
 run :: IO ()
 run = do
-  contents <- LBS.readFile "data.json"
+  contents <- LBS.readFile "in.json"
   let decodeResult = eitherDecode contents :: Either String [Operation]
   case decodeResult of
     Left err -> putStrLn $ "Error parsing JSON: " ++ err
     Right operations -> putStrLn $ T.unpack $ toImportRequests operations
 
 main :: IO ()
-main = test
+main = run
