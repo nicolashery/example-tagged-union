@@ -119,16 +119,16 @@ type Operation =
   | { type: "create_relation"; value: CreateRelationOperation }
   | { type: "delete_relation"; value: DeleteRelationOperation };
 
-const BatchRequest = z.object({
+const IncomingRequest = z.object({
   operations: z.array(Operation),
 });
 
-// type BatchRequest = z.infer<typeof BatchRequest>;
-type BatchRequest = {
+// type IncomingRequest = z.infer<typeof IncomingRequest>;
+type IncomingRequest = {
   operations: Operation[];
 };
 
-function toImportRequestObject(obj: DirectoryObject): string {
+function toOutgoingMessageObject(obj: DirectoryObject): string {
   const result = [
     "kind: object",
     "type: " + obj.type,
@@ -142,7 +142,7 @@ function toImportRequestObject(obj: DirectoryObject): string {
   return result.join("\n");
 }
 
-function toImportRequestRelation(rel: DirectoryRelation): string {
+function toOutgoingMessageRelation(rel: DirectoryRelation): string {
   return [
     "kind: relation",
     "object_type: " + rel.objectType,
@@ -153,20 +153,20 @@ function toImportRequestRelation(rel: DirectoryRelation): string {
   ].join("\n");
 }
 
-function toImportRequest(operation: Operation): string {
+function toOutgoingMessage(operation: Operation): string {
   const { type, value: op } = operation;
 
   switch (type) {
     case "create_object":
       return [
         "op_code: set",
-        toImportRequestObject(op.object),
+        toOutgoingMessageObject(op.object),
       ].join("\n");
 
     case "update_object":
       return [
         "op_code: set",
-        toImportRequestObject(op.object),
+        toOutgoingMessageObject(op.object),
       ].join("\n");
 
     case "delete_object": {
@@ -182,20 +182,20 @@ function toImportRequest(operation: Operation): string {
       };
       return [
         "op_code: delete",
-        toImportRequestObject(obj),
+        toOutgoingMessageObject(obj),
       ].join("\n");
     }
 
     case "create_relation":
       return [
         "op_code: set",
-        toImportRequestRelation(op.relation),
+        toOutgoingMessageRelation(op.relation),
       ].join("\n");
 
     case "delete_relation":
       return [
         "op_code: delete",
-        toImportRequestRelation(op.relation),
+        toOutgoingMessageRelation(op.relation),
       ].join("\n");
 
     default: {
@@ -205,8 +205,8 @@ function toImportRequest(operation: Operation): string {
   }
 }
 
-function toImportRequests(ops: Operation[]): string {
-  return ops.map(toImportRequest).join("\n\n");
+function toOutgoingMessages(ops: Operation[]): string {
+  return ops.map(toOutgoingMessage).join("\n\n");
 }
 
 const exampleOperations: Operation[] = [
@@ -268,7 +268,7 @@ const exampleOperations: Operation[] = [
 ];
 
 function _test() {
-  const request = BatchRequest.parse({
+  const request = IncomingRequest.parse({
     operations: exampleOperations,
   });
 
@@ -279,9 +279,9 @@ function run() {
   const decoder = new TextDecoder("utf-8");
   const bytes = Deno.readFileSync("in.json");
 
-  const request = BatchRequest.parse(JSON.parse(decoder.decode(bytes)));
+  const request = IncomingRequest.parse(JSON.parse(decoder.decode(bytes)));
 
-  const result = toImportRequests(request.operations);
+  const result = toOutgoingMessages(request.operations);
 
   console.log(result);
 }

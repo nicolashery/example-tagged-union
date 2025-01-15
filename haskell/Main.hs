@@ -140,19 +140,19 @@ instance FromJSON Operation where
 instance ToJSON Operation where
   toJSON = defaultToJSON "Operation"
 
-data BatchRequest = BatchRequest
-  { batchRequestOperations :: [Operation]
+data IncomingRequest = IncomingRequest
+  { incomingRequestOperations :: [Operation]
   }
   deriving (Show, Generic)
 
-instance FromJSON BatchRequest where
-  parseJSON = defaultParseJSON "batchRequest"
+instance FromJSON IncomingRequest where
+  parseJSON = defaultParseJSON "incomingRequest"
 
-instance ToJSON BatchRequest where
-  toJSON = defaultToJSON "batchRequest"
+instance ToJSON IncomingRequest where
+  toJSON = defaultToJSON "incomingRequest"
 
-toImportRequestObject :: DirectoryObject -> Text
-toImportRequestObject obj =
+toOutgoingMessageObject :: DirectoryObject -> Text
+toOutgoingMessageObject obj =
   let props = map (\(k, v) -> k <> ": " <> v) (Map.toList $ directoryObjectProperties obj)
    in T.intercalate "\n" $
         [ "kind: object",
@@ -161,8 +161,8 @@ toImportRequestObject obj =
         ]
           ++ props
 
-toImportRequestRelation :: DirectoryRelation -> Text
-toImportRequestRelation rel =
+toOutgoingMessageRelation :: DirectoryRelation -> Text
+toOutgoingMessageRelation rel =
   T.intercalate
     "\n"
     [ "kind: relation",
@@ -173,19 +173,19 @@ toImportRequestRelation rel =
       "subject_id: " <> directoryRelationSubjectId rel
     ]
 
-toImportRequest :: Operation -> Text
-toImportRequest operation = case operation of
+toOutgoingMessage :: Operation -> Text
+toOutgoingMessage operation = case operation of
   OperationCreateObject op ->
     T.intercalate
       "\n"
       [ "op_code: set",
-        toImportRequestObject (createObjectOperationObject op)
+        toOutgoingMessageObject (createObjectOperationObject op)
       ]
   OperationUpdateObject op ->
     T.intercalate
       "\n"
       [ "op_code: set",
-        toImportRequestObject (updateObjectOperationObject op)
+        toOutgoingMessageObject (updateObjectOperationObject op)
       ]
   OperationDeleteObject op ->
     -- T.intercalate
@@ -203,23 +203,23 @@ toImportRequest operation = case operation of
      in T.intercalate
           "\n"
           [ "op_code: delete",
-            toImportRequestObject obj
+            toOutgoingMessageObject obj
           ]
   OperationCreateRelation op ->
     T.intercalate
       "\n"
       [ "op_code: set",
-        toImportRequestRelation (createRelationOperationRelation op)
+        toOutgoingMessageRelation (createRelationOperationRelation op)
       ]
   OperationDeleteRelation op ->
     T.intercalate
       "\n"
       [ "op_code: delete",
-        toImportRequestRelation (deleteRelationOperationRelation op)
+        toOutgoingMessageRelation (deleteRelationOperationRelation op)
       ]
 
-toImportRequests :: [Operation] -> Text
-toImportRequests ops = T.intercalate "\n\n" (map toImportRequest ops)
+toOutgoingMessages :: [Operation] -> Text
+toOutgoingMessages ops = T.intercalate "\n\n" (map toOutgoingMessage ops)
 
 exampleOperations :: [Operation]
 exampleOperations =
@@ -299,15 +299,15 @@ prettyPrintJson = TIO.putStrLn . jsonToText
 
 test :: IO ()
 test = do
-  prettyPrintJson $ toJSON $ BatchRequest {batchRequestOperations = exampleOperations}
+  prettyPrintJson $ toJSON $ IncomingRequest {incomingRequestOperations = exampleOperations}
 
 run :: IO ()
 run = do
   contents <- LBS.readFile "in.json"
-  let decodeResult = eitherDecode contents :: Either String BatchRequest
+  let decodeResult = eitherDecode contents :: Either String IncomingRequest
   case decodeResult of
     Left err -> putStrLn $ "Error parsing JSON: " ++ err
-    Right request -> putStrLn $ T.unpack $ toImportRequests $ batchRequestOperations request
+    Right request -> putStrLn $ T.unpack $ toOutgoingMessages $ incomingRequestOperations request
 
 main :: IO ()
 main = run
