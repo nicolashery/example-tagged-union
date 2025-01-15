@@ -1,7 +1,22 @@
 module Main (main, test, run) where
 
-import Data.Aeson (FromJSON, ToJSON (toJSON), Value, eitherDecode)
+import Data.Aeson
+  ( FromJSON (parseJSON),
+    GFromJSON,
+    GToJSON,
+    Options (constructorTagModifier, fieldLabelModifier, sumEncoding),
+    SumEncoding (TaggedObject),
+    ToJSON (toJSON),
+    Value,
+    Zero,
+    camelTo2,
+    defaultOptions,
+    eitherDecode,
+    genericParseJSON,
+    genericToJSON,
+  )
 import Data.Aeson.Encode.Pretty (encodePretty)
+import Data.Aeson.Types (Parser)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -9,7 +24,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as E
 import Data.Text.IO qualified as TIO
-import GHC.Generics (Generic)
+import GHC.Generics (Generic, Rep)
 
 data DirectoryObject = DirectoryObject
   { directoryObjectType :: Text,
@@ -18,9 +33,11 @@ data DirectoryObject = DirectoryObject
   }
   deriving (Show, Generic)
 
-instance FromJSON DirectoryObject
+instance FromJSON DirectoryObject where
+  parseJSON = defaultParseJSON "directoryObject"
 
-instance ToJSON DirectoryObject
+instance ToJSON DirectoryObject where
+  toJSON = defaultToJSON "directoryObject"
 
 data DirectoryRelation = DirectoryRelation
   { directoryRelationObjectType :: Text,
@@ -31,9 +48,11 @@ data DirectoryRelation = DirectoryRelation
   }
   deriving (Show, Generic)
 
-instance FromJSON DirectoryRelation
+instance FromJSON DirectoryRelation where
+  parseJSON = defaultParseJSON "directoryRelation"
 
-instance ToJSON DirectoryRelation
+instance ToJSON DirectoryRelation where
+  toJSON = defaultToJSON "directoryRelation"
 
 data OperationType
   = OperationTypeCreateObject
@@ -43,27 +62,33 @@ data OperationType
   | OperationTypeDeleteRelation
   deriving (Show, Generic)
 
-instance FromJSON OperationType
+instance FromJSON OperationType where
+  parseJSON = defaultParseJSON "OperationType"
 
-instance ToJSON OperationType
+instance ToJSON OperationType where
+  toJSON = defaultToJSON "OperationType"
 
 data CreateObjectOperation = CreateObjectOperation
   { createObjectOperationObject :: DirectoryObject
   }
   deriving (Show, Generic)
 
-instance FromJSON CreateObjectOperation
+instance FromJSON CreateObjectOperation where
+  parseJSON = defaultParseJSON "createObjectOperation"
 
-instance ToJSON CreateObjectOperation
+instance ToJSON CreateObjectOperation where
+  toJSON = defaultToJSON "createObjectOperation"
 
 data UpdateObjectOperation = UpdateObjectOperation
   { updateObjectOperationObject :: DirectoryObject
   }
   deriving (Show, Generic)
 
-instance FromJSON UpdateObjectOperation
+instance FromJSON UpdateObjectOperation where
+  parseJSON = defaultParseJSON "updateObjectOperation"
 
-instance ToJSON UpdateObjectOperation
+instance ToJSON UpdateObjectOperation where
+  toJSON = defaultToJSON "updateObjectOperation"
 
 data DeleteObjectOperation = DeleteObjectOperation
   { deleteObjectOperationObjectType :: Text,
@@ -71,27 +96,33 @@ data DeleteObjectOperation = DeleteObjectOperation
   }
   deriving (Show, Generic)
 
-instance FromJSON DeleteObjectOperation
+instance FromJSON DeleteObjectOperation where
+  parseJSON = defaultParseJSON "deleteObjectOperation"
 
-instance ToJSON DeleteObjectOperation
+instance ToJSON DeleteObjectOperation where
+  toJSON = defaultToJSON "deleteObjectOperation"
 
 data CreateRelationOperation = CreateRelationOperation
   { createRelationOperationRelation :: DirectoryRelation
   }
   deriving (Show, Generic)
 
-instance FromJSON CreateRelationOperation
+instance FromJSON CreateRelationOperation where
+  parseJSON = defaultParseJSON "createRelationOperation"
 
-instance ToJSON CreateRelationOperation
+instance ToJSON CreateRelationOperation where
+  toJSON = defaultToJSON "createRelationOperation"
 
 data DeleteRelationOperation = DeleteRelationOperation
   { deleteRelationOperationRelation :: DirectoryRelation
   }
   deriving (Show, Generic)
 
-instance FromJSON DeleteRelationOperation
+instance FromJSON DeleteRelationOperation where
+  parseJSON = defaultParseJSON "deleteRelationOperation"
 
-instance ToJSON DeleteRelationOperation
+instance ToJSON DeleteRelationOperation where
+  toJSON = defaultToJSON "deleteRelationOperation"
 
 data Operation
   = OperationCreateObject CreateObjectOperation
@@ -101,9 +132,11 @@ data Operation
   | OperationDeleteRelation DeleteRelationOperation
   deriving (Show, Generic)
 
-instance FromJSON Operation
+instance FromJSON Operation where
+  parseJSON = defaultParseJSON "Operation"
 
-instance ToJSON Operation
+instance ToJSON Operation where
+  toJSON = defaultToJSON "Operation"
 
 toImportRequestObject :: DirectoryObject -> Text
 toImportRequestObject obj =
@@ -210,6 +243,24 @@ exampleOperations =
               }
         }
   ]
+
+defaultToJSON :: (Generic a, GToJSON Zero (Rep a)) => String -> (a -> Value)
+defaultToJSON prefix =
+  genericToJSON
+    defaultOptions
+      { fieldLabelModifier = camelTo2 '_' . drop (length prefix),
+        constructorTagModifier = camelTo2 '_' . drop (length prefix),
+        sumEncoding = TaggedObject "type" "value"
+      }
+
+defaultParseJSON :: (Generic a, GFromJSON Zero (Rep a)) => String -> (Value -> Parser a)
+defaultParseJSON prefix =
+  genericParseJSON
+    defaultOptions
+      { fieldLabelModifier = camelTo2 '_' . drop (length prefix),
+        constructorTagModifier = camelTo2 '_' . drop (length prefix),
+        sumEncoding = TaggedObject "type" "value"
+      }
 
 lsbToText :: LBS.ByteString -> T.Text
 lsbToText = E.decodeUtf8 . LBS.toStrict
