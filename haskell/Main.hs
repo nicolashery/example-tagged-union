@@ -26,8 +26,24 @@ import Data.Text.Encoding qualified as E
 import Data.Text.IO qualified as TIO
 import GHC.Generics (Generic, Rep)
 
+data ObjectType
+  = ObjectTypeUser
+  | ObjectTypeGroup
+  deriving (Show, Generic)
+
+instance FromJSON ObjectType where
+  parseJSON = defaultParseJSON "ObjectType"
+
+instance ToJSON ObjectType where
+  toJSON = defaultToJSON "ObjectType"
+
+objectTypeToText :: ObjectType -> Text
+objectTypeToText v = case v of
+  ObjectTypeUser -> "user"
+  ObjectTypeGroup -> "group"
+
 data DirectoryObject = DirectoryObject
-  { directoryObjectType :: Text,
+  { directoryObjectType :: ObjectType,
     directoryObjectId :: Text,
     directoryObjectProperties :: Map Text Text
   }
@@ -40,10 +56,10 @@ instance ToJSON DirectoryObject where
   toJSON = defaultToJSON "directoryObject"
 
 data DirectoryRelation = DirectoryRelation
-  { directoryRelationObjectType :: Text,
+  { directoryRelationObjectType :: ObjectType,
     directoryRelationObjectId :: Text,
     directoryRelationRelation :: Text,
-    directoryRelationSubjectType :: Text,
+    directoryRelationSubjectType :: ObjectType,
     directoryRelationSubjectId :: Text
   }
   deriving (Show, Generic)
@@ -53,20 +69,6 @@ instance FromJSON DirectoryRelation where
 
 instance ToJSON DirectoryRelation where
   toJSON = defaultToJSON "directoryRelation"
-
-data OperationType
-  = OperationTypeCreateObject
-  | OperationTypeUpdateObject
-  | OperationTypeDeleteObject
-  | OperationTypeCreateRelation
-  | OperationTypeDeleteRelation
-  deriving (Show, Generic)
-
-instance FromJSON OperationType where
-  parseJSON = defaultParseJSON "OperationType"
-
-instance ToJSON OperationType where
-  toJSON = defaultToJSON "OperationType"
 
 data CreateObjectOperation = CreateObjectOperation
   { createObjectOperationObject :: DirectoryObject
@@ -91,7 +93,7 @@ instance ToJSON UpdateObjectOperation where
   toJSON = defaultToJSON "updateObjectOperation"
 
 data DeleteObjectOperation = DeleteObjectOperation
-  { deleteObjectOperationObjectType :: Text,
+  { deleteObjectOperationObjectType :: ObjectType,
     deleteObjectOperationObjectId :: Text
   }
   deriving (Show, Generic)
@@ -154,7 +156,7 @@ toImportRequestObject obj =
   let props = map (\(k, v) -> k <> ": " <> v) (Map.toList $ directoryObjectProperties obj)
    in T.intercalate "\n" $
         [ "kind: object",
-          "type: " <> directoryObjectType obj,
+          "type: " <> (objectTypeToText $ directoryObjectType obj),
           "id: " <> directoryObjectId obj
         ]
           ++ props
@@ -164,10 +166,10 @@ toImportRequestRelation rel =
   T.intercalate
     "\n"
     [ "kind: relation",
-      "object_type: " <> directoryRelationObjectType rel,
+      "object_type: " <> (objectTypeToText $ directoryRelationObjectType rel),
       "object_id: " <> directoryRelationObjectId rel,
       "relation: " <> directoryRelationRelation rel,
-      "subject_type: " <> directoryRelationSubjectType rel,
+      "subject_type: " <> (objectTypeToText $ directoryRelationSubjectType rel),
       "subject_id: " <> directoryRelationSubjectId rel
     ]
 
@@ -191,7 +193,7 @@ toImportRequest operation = case operation of
     --   [ "op_code: delete",
     --     toImportRequestObject (deleteObjectOperationObject op)
     --   ]
-    -- -- Compiler error: Variable not in scope: deleteObjectOperationObject ...
+    -- -- Compiler error: Variable not in scope: deleteObjectOperationObject
     let obj =
           DirectoryObject
             { directoryObjectType = deleteObjectOperationObjectType op,
@@ -225,7 +227,7 @@ exampleOperations =
       CreateObjectOperation
         { createObjectOperationObject =
             DirectoryObject
-              { directoryObjectType = "user",
+              { directoryObjectType = ObjectTypeUser,
                 directoryObjectId = "b478779c-5e5e-4cd7-9bf3-1405326be526",
                 directoryObjectProperties = Map.fromList [("email", "alice@example.com")]
               }
@@ -234,24 +236,24 @@ exampleOperations =
       UpdateObjectOperation
         { updateObjectOperationObject =
             DirectoryObject
-              { directoryObjectType = "group",
+              { directoryObjectType = ObjectTypeGroup,
                 directoryObjectId = "2ca6785b-a2ef-4a62-a5f6-5e2314ae59ca",
                 directoryObjectProperties = Map.fromList [("name", "admins")]
               }
         },
     OperationDeleteObject
       DeleteObjectOperation
-        { deleteObjectOperationObjectType = "group",
+        { deleteObjectOperationObjectType = ObjectTypeGroup,
           deleteObjectOperationObjectId = "c9b58dd9-b4f6-4325-ba52-3d8d70857363"
         },
     OperationCreateRelation
       CreateRelationOperation
         { createRelationOperationRelation =
             DirectoryRelation
-              { directoryRelationObjectType = "group",
+              { directoryRelationObjectType = ObjectTypeGroup,
                 directoryRelationObjectId = "7910720c-9789-4dd3-83a4-4c65eebd82b3",
                 directoryRelationRelation = "member",
-                directoryRelationSubjectType = "user",
+                directoryRelationSubjectType = ObjectTypeUser,
                 directoryRelationSubjectId = "f32756fd-6a92-4034-8b86-c92cc9d9719f"
               }
         },
@@ -259,10 +261,10 @@ exampleOperations =
       DeleteRelationOperation
         { deleteRelationOperationRelation =
             DirectoryRelation
-              { directoryRelationObjectType = "group",
+              { directoryRelationObjectType = ObjectTypeGroup,
                 directoryRelationObjectId = "c3e65031-7455-45c8-acbd-59ec59d3e769",
                 directoryRelationRelation = "member",
-                directoryRelationSubjectType = "user",
+                directoryRelationSubjectType = ObjectTypeUser,
                 directoryRelationSubjectId = "f50fd4aa3-d632-46d6-92da-21bcc1391287"
               }
         }
