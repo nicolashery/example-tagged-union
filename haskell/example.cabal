@@ -27,4 +27,5 @@ executable example
         , aeson
         , aeson-pretty
         , bytestring
+        , containers
         , text

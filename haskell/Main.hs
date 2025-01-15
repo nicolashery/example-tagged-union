@@ -3,6 +3,8 @@ module Main (main, test, run) where
 import Data.Aeson (FromJSON, ToJSON (toJSON), Value, eitherDecode)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.ByteString.Lazy qualified as LBS
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as E
@@ -12,7 +14,7 @@ import GHC.Generics (Generic)
 data DirectoryObject = DirectoryObject
   { directoryObjectType :: Text,
     directoryObjectId :: Text,
-    directoryObjectProperties :: [(Text, Text)]
+    directoryObjectProperties :: Map Text Text
   }
   deriving (Show, Generic)
 
@@ -105,7 +107,7 @@ instance ToJSON Operation
 
 toImportRequestObject :: DirectoryObject -> Text
 toImportRequestObject obj =
-  let props = map (\(k, v) -> k <> ": " <> v) (directoryObjectProperties obj)
+  let props = map (\(k, v) -> k <> ": " <> v) (Map.toList $ directoryObjectProperties obj)
    in T.intercalate "\n" $
         [ "type: " <> directoryObjectType obj,
           "id: " <> directoryObjectId obj
@@ -168,7 +170,7 @@ exampleOperations =
             DirectoryObject
               { directoryObjectType = "user",
                 directoryObjectId = "b478779c-5e5e-4cd7-9bf3-1405326be526",
-                directoryObjectProperties = [("email", "alice@example.com")]
+                directoryObjectProperties = Map.fromList [("email", "alice@example.com")]
               }
         },
     OperationUpdateObject
@@ -177,7 +179,7 @@ exampleOperations =
             DirectoryObject
               { directoryObjectType = "group",
                 directoryObjectId = "2ca6785b-a2ef-4a62-a5f6-5e2314ae59ca",
-                directoryObjectProperties = [("name", "admins")]
+                directoryObjectProperties = Map.fromList [("name", "admins")]
               }
         },
     OperationDeleteObject
