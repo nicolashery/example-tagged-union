@@ -153,7 +153,8 @@ toImportRequestObject :: DirectoryObject -> Text
 toImportRequestObject obj =
   let props = map (\(k, v) -> k <> ": " <> v) (Map.toList $ directoryObjectProperties obj)
    in T.intercalate "\n" $
-        [ "type: " <> directoryObjectType obj,
+        [ "kind: object",
+          "type: " <> directoryObjectType obj,
           "id: " <> directoryObjectId obj
         ]
           ++ props
@@ -162,7 +163,8 @@ toImportRequestRelation :: DirectoryRelation -> Text
 toImportRequestRelation rel =
   T.intercalate
     "\n"
-    [ "object_type: " <> directoryRelationObjectType rel,
+    [ "kind: relation",
+      "object_type: " <> directoryRelationObjectType rel,
       "object_id: " <> directoryRelationObjectId rel,
       "relation: " <> directoryRelationRelation rel,
       "subject_type: " <> directoryRelationSubjectType rel,
@@ -174,32 +176,43 @@ toImportRequest operation = case operation of
   OperationCreateObject op ->
     T.intercalate
       "\n"
-      [ "op_code: create_object",
+      [ "op_code: set",
         toImportRequestObject (createObjectOperationObject op)
       ]
   OperationUpdateObject op ->
     T.intercalate
       "\n"
-      [ "op_code: update_object",
+      [ "op_code: set",
         toImportRequestObject (updateObjectOperationObject op)
       ]
   OperationDeleteObject op ->
-    T.intercalate
-      "\n"
-      [ "op_code: delete_object",
-        "type: " <> (deleteObjectOperationObjectType op),
-        "id: " <> (deleteObjectOperationObjectId op)
-      ]
+    -- T.intercalate
+    --   "\n"
+    --   [ "op_code: delete",
+    --     toImportRequestObject (deleteObjectOperationObject op)
+    --   ]
+    -- -- Compiler error: Variable not in scope: deleteObjectOperationObject ...
+    let obj =
+          DirectoryObject
+            { directoryObjectType = deleteObjectOperationObjectType op,
+              directoryObjectId = deleteObjectOperationObjectId op,
+              directoryObjectProperties = Map.empty
+            }
+     in T.intercalate
+          "\n"
+          [ "op_code: delete",
+            toImportRequestObject obj
+          ]
   OperationCreateRelation op ->
     T.intercalate
       "\n"
-      [ "op_code: create_relation",
+      [ "op_code: set",
         toImportRequestRelation (createRelationOperationRelation op)
       ]
   OperationDeleteRelation op ->
     T.intercalate
       "\n"
-      [ "op_code: delete_relation",
+      [ "op_code: delete",
         toImportRequestRelation (deleteRelationOperationRelation op)
       ]
 

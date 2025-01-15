@@ -1,25 +1,30 @@
-op_code: create_object
+op_code: set
+kind: object
 type: user
 id: b478779c-5e5e-4cd7-9bf3-1405326be526
 email: alice@example.com
 
-op_code: update_object
+op_code: set
+kind: object
 type: group
 id: 2ca6785b-a2ef-4a62-a5f6-5e2314ae59ca
 name: admins
 
-op_code: delete_object
+op_code: delete
+kind: object
 type: group
 id: c9b58dd9-b4f6-4325-ba52-3d8d70857363
 
-op_code: create_relation
+op_code: set
+kind: relation
 object_type: group
 object_id: 7910720c-9789-4dd3-83a4-4c65eebd82b3
 relation: member
 subject_type: user
 subject_id: f32756fd-6a92-4034-8b86-c92cc9d9719f
 
-op_code: delete_relation
+op_code: delete
+kind: relation
 object_type: group
 object_id: c3e65031-7455-45c8-acbd-59ec59d3e769
 relation: member
