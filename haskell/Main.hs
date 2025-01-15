@@ -10,9 +10,9 @@ import Data.Text.IO qualified as TIO
 import GHC.Generics (Generic)
 
 data DirectoryObject = DirectoryObject
-  { objectType :: Text,
-    objectId :: Text,
-    properties :: [(Text, Text)]
+  { directoryObjectType :: Text,
+    directoryObjectId :: Text,
+    directoryObjectProperties :: [(Text, Text)]
   }
   deriving (Show, Generic)
 
@@ -20,18 +20,12 @@ instance FromJSON DirectoryObject
 
 instance ToJSON DirectoryObject
 
-directoryObjectObjectType :: DirectoryObject -> Text
-directoryObjectObjectType (DirectoryObject t _ _) = t
-
-directoryObjectObjectId :: DirectoryObject -> Text
-directoryObjectObjectId (DirectoryObject _ i _) = i
-
 data DirectoryRelation = DirectoryRelation
-  { objectType :: Text,
-    objectId :: Text,
-    relation :: Text,
-    subjectType :: Text,
-    subjectId :: Text
+  { directoryRelationObjectType :: Text,
+    directoryRelationObjectId :: Text,
+    directoryRelationRelation :: Text,
+    directoryRelationSubjectType :: Text,
+    directoryRelationSubjectId :: Text
   }
   deriving (Show, Generic)
 
@@ -39,21 +33,12 @@ instance FromJSON DirectoryRelation
 
 instance ToJSON DirectoryRelation
 
-directoryRelationObjectType :: DirectoryRelation -> Text
-directoryRelationObjectType (DirectoryRelation t _ _ _ _) = t
-
-directoryRelationObjectId :: DirectoryRelation -> Text
-directoryRelationObjectId (DirectoryRelation _ i _ _ _) = i
-
-directoryRelationRelation :: DirectoryRelation -> Text
-directoryRelationRelation (DirectoryRelation _ _ r _ _) = r
-
 data OperationType
-  = CreateObject
-  | UpdateObject
-  | DeleteObject
-  | CreateRelation
-  | DeleteRelation
+  = OperationTypeCreateObject
+  | OperationTypeUpdateObject
+  | OperationTypeDeleteObject
+  | OperationTypeCreateRelation
+  | OperationTypeDeleteRelation
   deriving (Show, Generic)
 
 instance FromJSON OperationType
@@ -61,8 +46,7 @@ instance FromJSON OperationType
 instance ToJSON OperationType
 
 data CreateObjectOperation = CreateObjectOperation
-  { opType :: OperationType,
-    object :: DirectoryObject
+  { createObjectOperationObject :: DirectoryObject
   }
   deriving (Show, Generic)
 
@@ -71,8 +55,7 @@ instance FromJSON CreateObjectOperation
 instance ToJSON CreateObjectOperation
 
 data UpdateObjectOperation = UpdateObjectOperation
-  { opType :: OperationType,
-    object :: DirectoryObject
+  { updateObjectOperationObject :: DirectoryObject
   }
   deriving (Show, Generic)
 
@@ -81,9 +64,8 @@ instance FromJSON UpdateObjectOperation
 instance ToJSON UpdateObjectOperation
 
 data DeleteObjectOperation = DeleteObjectOperation
-  { opType :: OperationType,
-    objectType :: Text,
-    objectId :: Text
+  { deleteObjectOperationObjectType :: Text,
+    deleteObjectOperationObjectId :: Text
   }
   deriving (Show, Generic)
 
@@ -92,8 +74,7 @@ instance FromJSON DeleteObjectOperation
 instance ToJSON DeleteObjectOperation
 
 data CreateRelationOperation = CreateRelationOperation
-  { opType :: OperationType,
-    relation :: DirectoryRelation
+  { createRelationOperationRelation :: DirectoryRelation
   }
   deriving (Show, Generic)
 
@@ -102,8 +83,7 @@ instance FromJSON CreateRelationOperation
 instance ToJSON CreateRelationOperation
 
 data DeleteRelationOperation = DeleteRelationOperation
-  { opType :: OperationType,
-    relation :: DirectoryRelation
+  { deleteRelationOperationRelation :: DirectoryRelation
   }
   deriving (Show, Generic)
 
@@ -112,11 +92,11 @@ instance FromJSON DeleteRelationOperation
 instance ToJSON DeleteRelationOperation
 
 data Operation
-  = CreateObjectOp CreateObjectOperation
-  | UpdateObjectOp UpdateObjectOperation
-  | DeleteObjectOp DeleteObjectOperation
-  | CreateRelationOp CreateRelationOperation
-  | DeleteRelationOp DeleteRelationOperation
+  = OperationCreateObject CreateObjectOperation
+  | OperationUpdateObject UpdateObjectOperation
+  | OperationDeleteObject DeleteObjectOperation
+  | OperationCreateRelation CreateRelationOperation
+  | OperationDeleteRelation DeleteRelationOperation
   deriving (Show, Generic)
 
 instance FromJSON Operation
@@ -125,11 +105,10 @@ instance ToJSON Operation
 
 toImportRequestObject :: DirectoryObject -> Text
 toImportRequestObject obj =
-  let props = map (\(k, v) -> k <> ": " <> v) (properties obj)
+  let props = map (\(k, v) -> k <> ": " <> v) (directoryObjectProperties obj)
    in T.intercalate "\n" $
-        [ "kind: object",
-          "type: " <> directoryObjectObjectType obj,
-          "id: " <> directoryObjectObjectId obj
+        [ "type: " <> directoryObjectType obj,
+          "id: " <> directoryObjectId obj
         ]
           ++ props
 
@@ -137,80 +116,95 @@ toImportRequestRelation :: DirectoryRelation -> Text
 toImportRequestRelation rel =
   T.intercalate
     "\n"
-    [ "kind: relation",
-      "object_type: " <> directoryRelationObjectType rel,
+    [ "object_type: " <> directoryRelationObjectType rel,
       "object_id: " <> directoryRelationObjectId rel,
       "relation: " <> directoryRelationRelation rel,
-      "subject_type: " <> subjectType rel,
-      "subject_id: " <> subjectId rel
+      "subject_type: " <> directoryRelationSubjectType rel,
+      "subject_id: " <> directoryRelationSubjectId rel
     ]
 
 toImportRequest :: Operation -> Text
-toImportRequest op = case op of
-  CreateObjectOp (CreateObjectOperation _ obj) ->
-    T.intercalate "\n" ["op_code: set", toImportRequestObject obj]
-  UpdateObjectOp (UpdateObjectOperation _ obj) ->
-    T.intercalate "\n" ["op_code: set", toImportRequestObject obj]
-  DeleteObjectOp (DeleteObjectOperation _ objType objId) ->
-    T.intercalate "\n" ["op_code: delete", "kind: object", "type: " <> objType, "id: " <> objId]
-  CreateRelationOp (CreateRelationOperation _ rel) ->
-    T.intercalate "\n" ["op_code: set", toImportRequestRelation rel]
-  DeleteRelationOp (DeleteRelationOperation _ rel) ->
-    T.intercalate "\n" ["op_code: delete", toImportRequestRelation rel]
+toImportRequest operation = case operation of
+  OperationCreateObject op ->
+    T.intercalate
+      "\n"
+      [ "op_code: " <> jsonToText (toJSON OperationTypeCreateObject),
+        toImportRequestObject (createObjectOperationObject op)
+      ]
+  OperationUpdateObject op ->
+    T.intercalate
+      "\n"
+      [ "op_code: " <> jsonToText (toJSON OperationTypeUpdateObject),
+        toImportRequestObject (updateObjectOperationObject op)
+      ]
+  OperationDeleteObject op ->
+    T.intercalate
+      "\n"
+      [ "op_code: " <> jsonToText (toJSON OperationTypeDeleteObject),
+        "type: " <> (deleteObjectOperationObjectType op),
+        "id: " <> (deleteObjectOperationObjectId op)
+      ]
+  OperationCreateRelation op ->
+    T.intercalate
+      "\n"
+      [ "op_code: " <> jsonToText (toJSON OperationTypeCreateRelation),
+        toImportRequestRelation (createRelationOperationRelation op)
+      ]
+  OperationDeleteRelation op ->
+    T.intercalate
+      "\n"
+      [ "op_code: " <> jsonToText (toJSON OperationTypeDeleteRelation),
+        toImportRequestRelation (deleteRelationOperationRelation op)
+      ]
 
 toImportRequests :: [Operation] -> Text
 toImportRequests ops = T.intercalate "\n\n" (map toImportRequest ops)
 
 exampleOperations :: [Operation]
 exampleOperations =
-  [ CreateObjectOp
+  [ OperationCreateObject
       CreateObjectOperation
-        { opType = CreateObject,
-          object =
+        { createObjectOperationObject =
             DirectoryObject
-              { objectType = "user",
-                objectId = "b478779c-5e5e-4cd7-9bf3-1405326be526",
-                properties = [("email", "alice@example.com")]
+              { directoryObjectType = "user",
+                directoryObjectId = "b478779c-5e5e-4cd7-9bf3-1405326be526",
+                directoryObjectProperties = [("email", "alice@example.com")]
               }
         },
-    UpdateObjectOp
+    OperationUpdateObject
       UpdateObjectOperation
-        { opType = UpdateObject,
-          object =
+        { updateObjectOperationObject =
             DirectoryObject
-              { objectType = "group",
-                objectId = "2ca6785b-a2ef-4a62-a5f6-5e2314ae59ca",
-                properties = [("name", "admins")]
+              { directoryObjectType = "group",
+                directoryObjectId = "2ca6785b-a2ef-4a62-a5f6-5e2314ae59ca",
+                directoryObjectProperties = [("name", "admins")]
               }
         },
-    DeleteObjectOp
+    OperationDeleteObject
       DeleteObjectOperation
-        { opType = DeleteObject,
-          objectType = "group",
-          objectId = "c9b58dd9-b4f6-4325-ba52-3d8d70857363"
+        { deleteObjectOperationObjectType = "group",
+          deleteObjectOperationObjectId = "c9b58dd9-b4f6-4325-ba52-3d8d70857363"
         },
-    CreateRelationOp
+    OperationCreateRelation
       CreateRelationOperation
-        { opType = CreateRelation,
-          relation =
+        { createRelationOperationRelation =
             DirectoryRelation
-              { objectType = "group",
-                objectId = "7910720c-9789-4dd3-83a4-4c65eebd82b3",
-                relation = "member",
-                subjectType = "user",
-                subjectId = "f32756fd-6a92-4034-8b86-c92cc9d9719f"
+              { directoryRelationObjectType = "group",
+                directoryRelationObjectId = "7910720c-9789-4dd3-83a4-4c65eebd82b3",
+                directoryRelationRelation = "member",
+                directoryRelationSubjectType = "user",
+                directoryRelationSubjectId = "f32756fd-6a92-4034-8b86-c92cc9d9719f"
               }
         },
-    DeleteRelationOp
+    OperationDeleteRelation
       DeleteRelationOperation
-        { opType = DeleteRelation,
-          relation =
+        { deleteRelationOperationRelation =
             DirectoryRelation
-              { objectType = "group",
-                objectId = "c3e65031-7455-45c8-acbd-59ec59d3e769",
-                relation = "member",
-                subjectType = "user",
-                subjectId = "f50fd4aa3-d632-46d6-92da-21bcc1391287"
+              { directoryRelationObjectType = "group",
+                directoryRelationObjectId = "c3e65031-7455-45c8-acbd-59ec59d3e769",
+                directoryRelationRelation = "member",
+                directoryRelationSubjectType = "user",
+                directoryRelationSubjectId = "f50fd4aa3-d632-46d6-92da-21bcc1391287"
               }
         }
   ]
