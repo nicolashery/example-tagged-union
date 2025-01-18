@@ -151,75 +151,79 @@ instance FromJSON IncomingRequest where
 instance ToJSON IncomingRequest where
   toJSON = defaultToJSON "incomingRequest"
 
-toOutgoingMessageObject :: DirectoryObject -> Text
-toOutgoingMessageObject obj =
+data OpCode
+  = OpCodeSet
+  | OpCodeDelete
+  deriving (Show, Generic)
+
+opCodeToText :: OpCode -> Text
+opCodeToText v = case v of
+  OpCodeSet -> "set"
+  OpCodeDelete -> "delete"
+
+createOutgoingMessage ::
+  OpCode ->
+  Maybe DirectoryObject ->
+  Maybe DirectoryRelation ->
+  Text
+createOutgoingMessage opCode (Just obj) Nothing =
   let props = map (\(k, v) -> k <> ": " <> v) (Map.toList $ directoryObjectProperties obj)
    in T.intercalate "\n" $
-        [ "kind: object",
+        [ "op_code: " <> opCodeToText opCode,
+          "kind: object",
           "type: " <> (objectTypeToText $ directoryObjectType obj),
           "id: " <> directoryObjectId obj
         ]
           ++ props
-
-toOutgoingMessageRelation :: DirectoryRelation -> Text
-toOutgoingMessageRelation rel =
+createOutgoingMessage opCode Nothing (Just rel) =
   T.intercalate
     "\n"
-    [ "kind: relation",
+    [ "op_code: " <> opCodeToText opCode,
+      "kind: relation",
       "object_type: " <> (objectTypeToText $ directoryRelationObjectType rel),
       "object_id: " <> directoryRelationObjectId rel,
       "relation: " <> directoryRelationRelation rel,
       "subject_type: " <> (objectTypeToText $ directoryRelationSubjectType rel),
       "subject_id: " <> directoryRelationSubjectId rel
     ]
+createOutgoingMessage opCode Nothing Nothing =
+  "op_code: " <> opCodeToText opCode
+createOutgoingMessage _ (Just _) (Just _) =
+  ""
 
-toOutgoingMessage :: Operation -> Text
-toOutgoingMessage operation = case operation of
+transform :: Operation -> Text
+transform operation = case operation of
   OperationCreateObject op ->
-    T.intercalate
-      "\n"
-      [ "op_code: set",
-        toOutgoingMessageObject (createObjectOperationObject op)
-      ]
+    createOutgoingMessage
+      OpCodeSet
+      (Just $ createObjectOperationObject op)
+      Nothing
   OperationUpdateObject op ->
-    T.intercalate
-      "\n"
-      [ "op_code: set",
-        toOutgoingMessageObject (updateObjectOperationObject op)
-      ]
+    createOutgoingMessage
+      OpCodeSet
+      (Just $ updateObjectOperationObject op)
+      Nothing
   OperationDeleteObject op ->
-    -- T.intercalate
-    --   "\n"
-    --   [ "op_code: delete",
-    --     toImportRequestObject (deleteObjectOperationObject op)
-    --   ]
-    -- -- Compiler error: Variable not in scope: deleteObjectOperationObject
     let obj =
           DirectoryObject
             { directoryObjectType = deleteObjectOperationObjectType op,
               directoryObjectId = deleteObjectOperationObjectId op,
               directoryObjectProperties = Map.empty
             }
-     in T.intercalate
-          "\n"
-          [ "op_code: delete",
-            toOutgoingMessageObject obj
-          ]
+     in createOutgoingMessage OpCodeDelete (Just obj) Nothing
   OperationCreateRelation op ->
-    T.intercalate
-      "\n"
-      [ "op_code: set",
-        toOutgoingMessageRelation (createRelationOperationRelation op)
-      ]
+    createOutgoingMessage
+      OpCodeSet
+      Nothing
+      (Just $ createRelationOperationRelation op)
   OperationDeleteRelation op ->
-    T.intercalate
-      "\n"
-      [ "op_code: delete",
-        toOutgoingMessageRelation (deleteRelationOperationRelation op)
-      ]
+    createOutgoingMessage
+      OpCodeDelete
+      Nothing
+      (Just $ deleteRelationOperationRelation op)
 
-toOutgoingMessages :: [Operation] -> Text
-toOutgoingMessages ops = T.intercalate "\n\n" (map toOutgoingMessage ops)
+transformMany :: [Operation] -> Text
+transformMany ops = T.intercalate "\n\n" (map transform ops)
 
 exampleOperations :: [Operation]
 exampleOperations =
@@ -307,7 +311,7 @@ run = do
   let decodeResult = eitherDecode contents :: Either String IncomingRequest
   case decodeResult of
     Left err -> putStrLn $ "Error parsing JSON: " ++ err
-    Right request -> putStrLn $ T.unpack $ toOutgoingMessages $ incomingRequestOperations request
+    Right request -> putStrLn $ T.unpack $ transformMany $ incomingRequestOperations request
 
 main :: IO ()
 main = run

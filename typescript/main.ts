@@ -128,75 +128,82 @@ type IncomingRequest = {
   operations: Operation[];
 };
 
-function toOutgoingMessageObject(obj: DirectoryObject): string {
-  const result = [
-    "kind: object",
-    "type: " + obj.type,
-    "id: " + obj.id,
+const OpCode = z.enum([
+  "set",
+  "delete",
+]);
+
+// type OpCode = z.infer<typeof OpCode>;
+type OpCode =
+  | "set"
+  | "delete";
+
+function createOutgoingMessage(
+  opCode: OpCode,
+  payload: { obj?: DirectoryObject; rel?: DirectoryRelation },
+): string {
+  const { obj, rel } = payload;
+
+  let result = [
+    "op_code: " + opCode,
   ];
 
-  for (const [key, value] of Object.entries(obj.properties)) {
-    result.push(key + ": " + value);
+  if (obj) {
+    result = result.concat([
+      "kind: object",
+      "type: " + obj.type,
+      "id: " + obj.id,
+    ]);
+
+    for (const [key, value] of Object.entries(obj.properties)) {
+      result.push(key + ": " + value);
+    }
+  } else if (rel) {
+    result = result.concat([
+      "kind: relation",
+      "object_type: " + rel.objectType,
+      "object_id: " + rel.objectId,
+      "relation: " + rel.relation,
+      "subject_type: " + rel.subjectType,
+      "subject_id: " + rel.subjectId,
+    ]);
   }
 
   return result.join("\n");
 }
 
-function toOutgoingMessageRelation(rel: DirectoryRelation): string {
-  return [
-    "kind: relation",
-    "object_type: " + rel.objectType,
-    "object_id: " + rel.objectId,
-    "relation: " + rel.relation,
-    "subject_type: " + rel.subjectType,
-    "subject_id: " + rel.subjectId,
-  ].join("\n");
-}
-
-function toOutgoingMessage(operation: Operation): string {
+function transform(operation: Operation): string {
   const { type, value: op } = operation;
 
   switch (type) {
     case "create_object":
-      return [
-        "op_code: set",
-        toOutgoingMessageObject(op.object),
-      ].join("\n");
+      return createOutgoingMessage(OpCode.enum.set, {
+        obj: op.object,
+      });
 
     case "update_object":
-      return [
-        "op_code: set",
-        toOutgoingMessageObject(op.object),
-      ].join("\n");
+      return createOutgoingMessage(OpCode.enum.set, {
+        obj: op.object,
+      });
 
     case "delete_object": {
-      // return [
-      //   "op_code: delete",
-      //   toImportRequestObject(op.object)
-      // ].join("\n");
-      // // Type error: Property 'object' does not exist on type 'DeleteObjectOperation'
       const obj: DirectoryObject = {
         type: op.objectType,
         id: op.objectId,
         properties: {},
       };
-      return [
-        "op_code: delete",
-        toOutgoingMessageObject(obj),
-      ].join("\n");
+      return createOutgoingMessage(OpCode.enum.delete, { obj });
     }
 
     case "create_relation":
-      return [
-        "op_code: set",
-        toOutgoingMessageRelation(op.relation),
-      ].join("\n");
+      return createOutgoingMessage(OpCode.enum.set, {
+        rel: op.relation,
+      });
 
     case "delete_relation":
-      return [
-        "op_code: delete",
-        toOutgoingMessageRelation(op.relation),
-      ].join("\n");
+      return createOutgoingMessage(OpCode.enum.delete, {
+        rel: op.relation,
+      });
 
     default: {
       const _exhaustiveCheck: never = op;
@@ -205,8 +212,8 @@ function toOutgoingMessage(operation: Operation): string {
   }
 }
 
-function toOutgoingMessages(ops: Operation[]): string {
-  return ops.map(toOutgoingMessage).join("\n\n");
+function transformMany(ops: Operation[]): string {
+  return ops.map(transform).join("\n\n");
 }
 
 const exampleOperations: Operation[] = [
@@ -214,7 +221,7 @@ const exampleOperations: Operation[] = [
     type: "create_object",
     value: {
       object: {
-        type: "user",
+        type: ObjectType.enum.user,
         id: "b478779c-5e5e-4cd7-9bf3-1405326be526",
         properties: {
           email: "alice@example.com",
@@ -226,7 +233,7 @@ const exampleOperations: Operation[] = [
     type: "update_object",
     value: {
       object: {
-        type: "group",
+        type: ObjectType.enum.group,
         id: "2ca6785b-a2ef-4a62-a5f6-5e2314ae59ca",
         properties: {
           name: "admins",
@@ -237,7 +244,7 @@ const exampleOperations: Operation[] = [
   {
     type: "delete_object",
     value: {
-      objectType: "group",
+      objectType: ObjectType.enum.group,
       objectId: "c9b58dd9-b4f6-4325-ba52-3d8d70857363",
     },
   },
@@ -245,10 +252,10 @@ const exampleOperations: Operation[] = [
     type: "create_relation",
     value: {
       relation: {
-        objectType: "group",
+        objectType: ObjectType.enum.group,
         objectId: "7910720c-9789-4dd3-83a4-4c65eebd82b3",
         relation: "member",
-        subjectType: "user",
+        subjectType: ObjectType.enum.user,
         subjectId: "f32756fd-6a92-4034-8b86-c92cc9d9719f",
       },
     },
@@ -257,10 +264,10 @@ const exampleOperations: Operation[] = [
     type: "delete_relation",
     value: {
       relation: {
-        objectType: "group",
+        objectType: ObjectType.enum.group,
         objectId: "c3e65031-7455-45c8-acbd-59ec59d3e769",
         relation: "member",
-        subjectType: "user",
+        subjectType: ObjectType.enum.user,
         subjectId: "f50fd4aa3-d632-46d6-92da-21bcc1391287",
       },
     },
@@ -281,7 +288,7 @@ function run() {
 
   const request = IncomingRequest.parse(JSON.parse(decoder.decode(bytes)));
 
-  const result = toOutgoingMessages(request.operations);
+  const result = transformMany(request.operations);
 
   console.log(result);
 }
