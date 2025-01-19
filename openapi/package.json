@@ -1,0 +1,10 @@
+{
+  "name": "example-tagged-union-openapi",
+  "version": "1.0.0",
+  "dependencies": {
+    "@redocly/cli": "^1.27.2"
+  },
+  "scripts": {
+    "preview": "redocly preview-docs spec.yaml"
+  }
+}

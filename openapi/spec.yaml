@@ -1,0 +1,144 @@
+openapi: 3.1.0
+info:
+  title: Operations API
+  version: 1.0.0
+paths:
+  /operations:
+    post:
+      summary: Add operation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Operation"
+      responses:
+        "201":
+          description: Operation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operation"
+    get:
+      summary: List operations
+      responses:
+        "200":
+          description: A list of operations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListOperationsResponse"
+components:
+  schemas:
+    ListOperationsResponse:
+      type: object
+      properties:
+        operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Operation"
+    Operation:
+      type: object
+      discriminator:
+        propertyName: type
+        mapping:
+          "create_object": "#/components/schemas/CreateObjectOperationWrapper"
+          "update_object": "#/components/schemas/UpdateObjectOperationWrapper"
+          "delete_object": "#/components/schemas/DeleteObjectOperationWrapper"
+          "create_relation": "#/components/schemas/CreateRelationOperationWrapper"
+          "delete_relation": "#/components/schemas/DeleteRelationOperationWrapper"
+      oneOf:
+        - $ref: "#/components/schemas/CreateObjectOperationWrapper"
+        - $ref: "#/components/schemas/UpdateObjectOperationWrapper"
+        - $ref: "#/components/schemas/DeleteObjectOperationWrapper"
+        - $ref: "#/components/schemas/CreateRelationOperationWrapper"
+        - $ref: "#/components/schemas/DeleteRelationOperationWrapper"
+    CreateObjectOperationWrapper:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          $ref: "#/components/schemas/CreateObjectOperation"
+    UpdateObjectOperationWrapper:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          $ref: "#/components/schemas/UpdateObjectOperation"
+    DeleteObjectOperationWrapper:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          $ref: "#/components/schemas/DeleteObjectOperation"
+    CreateRelationOperationWrapper:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          $ref: "#/components/schemas/CreateRelationOperation"
+    DeleteRelationOperationWrapper:
+      type: object
+      properties:
+        type:
+          type: string
+        value:
+          $ref: "#/components/schemas/DeleteRelationOperation"
+    CreateObjectOperation:
+      type: object
+      properties:
+        object:
+          $ref: "#/components/schemas/DirectoryObject"
+    UpdateObjectOperation:
+      type: object
+      properties:
+        object:
+          $ref: "#/components/schemas/DirectoryObject"
+    DeleteObjectOperation:
+      type: object
+      properties:
+        objectType:
+          $ref: "#/components/schemas/ObjectType"
+        objectId:
+          type: string
+    CreateRelationOperation:
+      type: object
+      properties:
+        relation:
+          $ref: "#/components/schemas/DirectoryRelation"
+    DeleteRelationOperation:
+      type: object
+      properties:
+        relation:
+          $ref: "#/components/schemas/DirectoryRelation"
+    DirectoryObject:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/ObjectType"
+        id:
+          type: string
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+    DirectoryRelation:
+      type: object
+      properties:
+        objectType:
+          $ref: "#/components/schemas/ObjectType"
+        objectId:
+          type: string
+        relation:
+          type: string
+        subjectType:
+          $ref: "#/components/schemas/ObjectType"
+        subjectId:
+          type: string
+    ObjectType:
+      type: string
+      enum: ["user", "group"]
