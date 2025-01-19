@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 )
 
 type ObjectType int
@@ -246,6 +248,88 @@ func (r IncomingRequest) GetOperations() []Operation {
 	return operations
 }
 
+type OpCode int
+
+const (
+	OpCode_Set OpCode = iota
+	OpCode_Delete
+)
+
+var OpCodeStringMap = map[OpCode]string{
+	OpCode_Set:    "set",
+	OpCode_Delete: "delete",
+}
+
+func (t OpCode) String() string {
+	return OpCodeStringMap[t]
+}
+
+func (o *DirectoryObject) ToMessagePayload() string {
+	var result []string
+	result = append(result, "kind: object")
+	result = append(result, "type: "+o.Type.String())
+	result = append(result, "id: "+o.ID)
+
+	for key, value := range o.Properties {
+		result = append(result, key+": "+value)
+	}
+
+	return strings.Join(result, "\n")
+}
+
+func (r *DirectoryRelation) ToMessagePayload() string {
+	var result []string
+	result = append(result, "kind: relation")
+	result = append(result, "object_type: "+r.ObjectType.String())
+	result = append(result, "object_id: "+r.ObjectID)
+	result = append(result, "relation: "+r.Relation)
+	result = append(result, "subject_type: "+r.SubjectType.String())
+	result = append(result, "subject_id: "+r.SubjectID)
+
+	return strings.Join(result, "\n")
+}
+
+func createOutgoingMessageObject(opCode OpCode, obj *DirectoryObject) string {
+	payload := obj.ToMessagePayload()
+	return fmt.Sprintf("op_code: %s\n%s", opCode.String(), payload)
+}
+
+func createOutgoingMessageRelation(opCode OpCode, rel *DirectoryRelation) string {
+	payload := rel.ToMessagePayload()
+	return fmt.Sprintf("op_code: %s\n%s", opCode.String(), payload)
+}
+
+func transform(operation Operation) string {
+	var result string
+	switch op := operation.(type) {
+	case *CreateObjectOperation:
+		result = createOutgoingMessageObject(OpCode_Set, &op.Object)
+	case *UpdateObjectOperation:
+		result = createOutgoingMessageObject(OpCode_Set, &op.Object)
+	case *DeleteObjectOperation:
+		obj := DirectoryObject{
+			Type:       op.ObjectType,
+			ID:         op.ObjectID,
+			Properties: map[string]string{},
+		}
+		result = createOutgoingMessageObject(OpCode_Delete, &obj)
+	case *CreateRelationOperation:
+		result = createOutgoingMessageRelation(OpCode_Set, &op.Relation)
+	case *DeleteRelationOperation:
+		return createOutgoingMessageRelation(OpCode_Delete, &op.Relation)
+	}
+
+	return result
+}
+
+func transformMany(operations []Operation) string {
+	var result []string
+	for _, op := range operations {
+		result = append(result, transform(op))
+	}
+	return strings.Join(result, "\n\n")
+}
+
 var exampleOperations = []Operation{
 	&CreateObjectOperation{
 		Object: DirectoryObject{
@@ -300,6 +384,23 @@ func test() {
 	fmt.Println(string(data))
 }
 
+func run() {
+	bytes, err := os.ReadFile("in.json")
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return
+	}
+
+	var request IncomingRequest
+	if err := json.Unmarshal(bytes, &request); err != nil {
+		fmt.Println("Error unmarshalling request:", err)
+		return
+	}
+
+	result := transformMany(request.GetOperations())
+	fmt.Println(result)
+}
+
 func main() {
-	test()
+	run()
 }
