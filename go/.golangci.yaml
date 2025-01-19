@@ -1,0 +1,11 @@
+linters:
+  enable:
+  - exhaustive
+  - gochecksumtype
+linters-settings:
+  exhaustive:
+    check:
+      - switch
+      - map
+  gochecksumtype:
+    default-signifies-exhaustive: false

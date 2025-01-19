@@ -102,6 +102,7 @@ func (t OperationType) String() string {
 	return OperationTypeStringMap[t]
 }
 
+//sumtype:decl
 type Operation interface {
 	isOperation()
 	OperationType() OperationType
@@ -294,28 +295,6 @@ func test() {
 	data, err := json.MarshalIndent(request, "", "  ")
 	if err != nil {
 		fmt.Println("Error marshalling request:", err)
-		return
-	}
-	fmt.Println(string(data))
-}
-
-func test2() {
-	op := OperationWrapper{
-		Type: OperationType_CreateObject,
-		Value: &CreateObjectOperation{
-			Object: DirectoryObject{
-				Type: ObjectType_User,
-				ID:   "b478779c-5e5e-4cd7-9bf3-1405326be526",
-				Properties: map[string]string{
-					"email": "alice@example.com",
-				},
-			},
-		},
-	}
-
-	data, err := json.MarshalIndent(op, "", "  ")
-	if err != nil {
-		fmt.Println("Error marshalling operation:", err)
 		return
 	}
 	fmt.Println(string(data))
