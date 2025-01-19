@@ -22,16 +22,20 @@ var ObjectTypeValueMap = map[string]ObjectType{
 	"group": ObjectType_Group,
 }
 
-func (t ObjectType) MarshallText() ([]byte, error) {
-	return []byte(ObjectTypeStringMap[t]), nil
+func (t ObjectType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ObjectTypeStringMap[t])
 }
 
-func (t *ObjectType) UnmarshallText(text []byte) error {
-	if v, ok := ObjectTypeValueMap[string(text)]; ok {
+func (t *ObjectType) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	if v, ok := ObjectTypeValueMap[s]; ok {
 		*t = v
 		return nil
 	}
-	return fmt.Errorf("invalid ObjectType: %s", text)
+	return fmt.Errorf("invalid ObjectType: %s", s)
 }
 
 func (t ObjectType) String() string {
@@ -52,9 +56,55 @@ type DirectoryRelation struct {
 	SubjectID   string     `json:"subject_id"`
 }
 
+type OperationType int
+
+const (
+	OperationType_CreateObject OperationType = iota
+	OperationType_UpdateObject
+	OperationType_DeleteObject
+	OperationType_CreateRelation
+	OperationType_DeleteRelation
+)
+
+var OperationTypeStringMap = map[OperationType]string{
+	OperationType_CreateObject:   "create_object",
+	OperationType_UpdateObject:   "update_object",
+	OperationType_DeleteObject:   "delete_object",
+	OperationType_CreateRelation: "create_relation",
+	OperationType_DeleteRelation: "delete_relation",
+}
+
+var OperationTypeValueMap = map[string]OperationType{
+	"create_object":   OperationType_CreateObject,
+	"update_object":   OperationType_UpdateObject,
+	"delete_object":   OperationType_DeleteObject,
+	"create_relation": OperationType_CreateRelation,
+	"delete_relation": OperationType_DeleteRelation,
+}
+
+func (t OperationType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(OperationTypeStringMap[t])
+}
+
+func (t *OperationType) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	if v, ok := OperationTypeValueMap[s]; ok {
+		*t = v
+		return nil
+	}
+	return fmt.Errorf("invalid OperationType: %s", s)
+}
+
+func (t OperationType) String() string {
+	return OperationTypeStringMap[t]
+}
+
 type Operation interface {
 	isOperation()
-	OperationType() string
+	OperationType() OperationType
 }
 
 type CreateObjectOperation struct {
@@ -62,8 +112,8 @@ type CreateObjectOperation struct {
 }
 
 func (*CreateObjectOperation) isOperation() {}
-func (*CreateObjectOperation) OperationType() string {
-	return "create_object"
+func (*CreateObjectOperation) OperationType() OperationType {
+	return OperationType_CreateObject
 }
 
 type UpdateObjectOperation struct {
@@ -71,8 +121,8 @@ type UpdateObjectOperation struct {
 }
 
 func (*UpdateObjectOperation) isOperation() {}
-func (*UpdateObjectOperation) OperationType() string {
-	return "update_object"
+func (*UpdateObjectOperation) OperationType() OperationType {
+	return OperationType_UpdateObject
 }
 
 type DeleteObjectOperation struct {
@@ -81,8 +131,8 @@ type DeleteObjectOperation struct {
 }
 
 func (*DeleteObjectOperation) isOperation() {}
-func (*DeleteObjectOperation) OperationType() string {
-	return "delete_object"
+func (*DeleteObjectOperation) OperationType() OperationType {
+	return OperationType_DeleteObject
 }
 
 type CreateRelationOperation struct {
@@ -90,8 +140,8 @@ type CreateRelationOperation struct {
 }
 
 func (*CreateRelationOperation) isOperation() {}
-func (*CreateRelationOperation) OperationType() string {
-	return "create_relation"
+func (*CreateRelationOperation) OperationType() OperationType {
+	return OperationType_CreateRelation
 }
 
 type DeleteRelationOperation struct {
@@ -99,13 +149,13 @@ type DeleteRelationOperation struct {
 }
 
 func (*DeleteRelationOperation) isOperation() {}
-func (*DeleteRelationOperation) OperationType() string {
-	return "delete_relation"
+func (*DeleteRelationOperation) OperationType() OperationType {
+	return OperationType_DeleteRelation
 }
 
 type OperationWrapper struct {
-	Type  string    `json:"type"`
-	Value Operation `json:"value"`
+	Type  OperationType `json:"type"`
+	Value Operation     `json:"value"`
 }
 
 func (o OperationWrapper) MarshalJSON() ([]byte, error) {
@@ -135,7 +185,7 @@ func (o OperationWrapper) MarshalJSON() ([]byte, error) {
 
 func (o *OperationWrapper) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Type  string          `json:"type"`
+		Type  OperationType   `json:"type"`
 		Value json.RawMessage `json:"value"`
 	}
 
@@ -146,15 +196,15 @@ func (o *OperationWrapper) UnmarshalJSON(data []byte) error {
 	o.Type = temp.Type
 	var op Operation
 	switch temp.Type {
-	case "create_object":
+	case OperationType_CreateObject:
 		op = &CreateObjectOperation{}
-	case "update_object":
+	case OperationType_UpdateObject:
 		op = &UpdateObjectOperation{}
-	case "delete_object":
+	case OperationType_DeleteObject:
 		op = &DeleteObjectOperation{}
-	case "create_relation":
+	case OperationType_CreateRelation:
 		op = &CreateRelationOperation{}
-	case "delete_relation":
+	case OperationType_DeleteRelation:
 		op = &DeleteRelationOperation{}
 	}
 
@@ -251,7 +301,7 @@ func test() {
 
 func test2() {
 	op := OperationWrapper{
-		Type: "create_object",
+		Type: OperationType_CreateObject,
 		Value: &CreateObjectOperation{
 			Object: DirectoryObject{
 				Type: ObjectType_User,
