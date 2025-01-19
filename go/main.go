@@ -264,8 +264,9 @@ func (t OpCode) String() string {
 	return OpCodeStringMap[t]
 }
 
-func (o *DirectoryObject) ToMessagePayload() string {
+func (o *DirectoryObject) ToOutgoingMessage(opCode OpCode) string {
 	var result []string
+	result = append(result, "op_code: "+opCode.String())
 	result = append(result, "kind: object")
 	result = append(result, "type: "+o.Type.String())
 	result = append(result, "id: "+o.ID)
@@ -277,8 +278,9 @@ func (o *DirectoryObject) ToMessagePayload() string {
 	return strings.Join(result, "\n")
 }
 
-func (r *DirectoryRelation) ToMessagePayload() string {
+func (r *DirectoryRelation) ToOutgoingMessage(opCode OpCode) string {
 	var result []string
+	result = append(result, "op_code: "+opCode.String())
 	result = append(result, "kind: relation")
 	result = append(result, "object_type: "+r.ObjectType.String())
 	result = append(result, "object_id: "+r.ObjectID)
@@ -289,34 +291,24 @@ func (r *DirectoryRelation) ToMessagePayload() string {
 	return strings.Join(result, "\n")
 }
 
-func createOutgoingMessageObject(opCode OpCode, obj *DirectoryObject) string {
-	payload := obj.ToMessagePayload()
-	return fmt.Sprintf("op_code: %s\n%s", opCode.String(), payload)
-}
-
-func createOutgoingMessageRelation(opCode OpCode, rel *DirectoryRelation) string {
-	payload := rel.ToMessagePayload()
-	return fmt.Sprintf("op_code: %s\n%s", opCode.String(), payload)
-}
-
 func transform(operation Operation) string {
 	var result string
 	switch op := operation.(type) {
 	case *CreateObjectOperation:
-		result = createOutgoingMessageObject(OpCode_Set, &op.Object)
+		result = op.Object.ToOutgoingMessage(OpCode_Set)
 	case *UpdateObjectOperation:
-		result = createOutgoingMessageObject(OpCode_Set, &op.Object)
+		result = op.Object.ToOutgoingMessage(OpCode_Set)
 	case *DeleteObjectOperation:
 		obj := DirectoryObject{
 			Type:       op.ObjectType,
 			ID:         op.ObjectID,
 			Properties: map[string]string{},
 		}
-		result = createOutgoingMessageObject(OpCode_Delete, &obj)
+		result = obj.ToOutgoingMessage(OpCode_Delete)
 	case *CreateRelationOperation:
-		result = createOutgoingMessageRelation(OpCode_Set, &op.Relation)
+		result = op.Relation.ToOutgoingMessage(OpCode_Set)
 	case *DeleteRelationOperation:
-		return createOutgoingMessageRelation(OpCode_Delete, &op.Relation)
+		return op.Relation.ToOutgoingMessage(OpCode_Delete)
 	}
 
 	return result

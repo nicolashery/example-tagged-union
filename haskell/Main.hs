@@ -161,12 +161,8 @@ opCodeToText v = case v of
   OpCodeSet -> "set"
   OpCodeDelete -> "delete"
 
-createOutgoingMessage ::
-  OpCode ->
-  Maybe DirectoryObject ->
-  Maybe DirectoryRelation ->
-  Text
-createOutgoingMessage opCode (Just obj) Nothing =
+objectToOutgoingMessage :: DirectoryObject -> OpCode -> Text
+objectToOutgoingMessage obj opCode =
   let props = map (\(k, v) -> k <> ": " <> v) (Map.toList $ directoryObjectProperties obj)
    in T.intercalate "\n" $
         [ "op_code: " <> opCodeToText opCode,
@@ -175,7 +171,9 @@ createOutgoingMessage opCode (Just obj) Nothing =
           "id: " <> directoryObjectId obj
         ]
           ++ props
-createOutgoingMessage opCode Nothing (Just rel) =
+
+relationToOutgoingMessage :: DirectoryRelation -> OpCode -> Text
+relationToOutgoingMessage rel opCode =
   T.intercalate
     "\n"
     [ "op_code: " <> opCodeToText opCode,
@@ -186,23 +184,13 @@ createOutgoingMessage opCode Nothing (Just rel) =
       "subject_type: " <> (objectTypeToText $ directoryRelationSubjectType rel),
       "subject_id: " <> directoryRelationSubjectId rel
     ]
-createOutgoingMessage opCode Nothing Nothing =
-  "op_code: " <> opCodeToText opCode
-createOutgoingMessage _ (Just _) (Just _) =
-  ""
 
 transform :: Operation -> Text
 transform operation = case operation of
   OperationCreateObject op ->
-    createOutgoingMessage
-      OpCodeSet
-      (Just $ createObjectOperationObject op)
-      Nothing
+    objectToOutgoingMessage (createObjectOperationObject op) OpCodeSet
   OperationUpdateObject op ->
-    createOutgoingMessage
-      OpCodeSet
-      (Just $ updateObjectOperationObject op)
-      Nothing
+    objectToOutgoingMessage (updateObjectOperationObject op) OpCodeSet
   OperationDeleteObject op ->
     let obj =
           DirectoryObject
@@ -210,17 +198,11 @@ transform operation = case operation of
               directoryObjectId = deleteObjectOperationObjectId op,
               directoryObjectProperties = Map.empty
             }
-     in createOutgoingMessage OpCodeDelete (Just obj) Nothing
+     in objectToOutgoingMessage obj OpCodeDelete
   OperationCreateRelation op ->
-    createOutgoingMessage
-      OpCodeSet
-      Nothing
-      (Just $ createRelationOperationRelation op)
+    relationToOutgoingMessage (createRelationOperationRelation op) OpCodeSet
   OperationDeleteRelation op ->
-    createOutgoingMessage
-      OpCodeDelete
-      Nothing
-      (Just $ deleteRelationOperationRelation op)
+    relationToOutgoingMessage (deleteRelationOperationRelation op) OpCodeDelete
 
 transformMany :: [Operation] -> Text
 transformMany ops = T.intercalate "\n\n" (map transform ops)

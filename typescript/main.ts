@@ -138,36 +138,34 @@ type OpCode =
   | "set"
   | "delete";
 
-function createOutgoingMessage(
-  opCode: OpCode,
-  payload: { obj?: DirectoryObject; rel?: DirectoryRelation },
-): string {
-  const { obj, rel } = payload;
-
-  let result = [
+function objectToOutgoingMessage(obj: DirectoryObject, opCode: OpCode): string {
+  const result = [
     "op_code: " + opCode,
+    "kind: object",
+    "type: " + obj.type,
+    "id: " + obj.id,
   ];
 
-  if (obj) {
-    result = result.concat([
-      "kind: object",
-      "type: " + obj.type,
-      "id: " + obj.id,
-    ]);
-
-    for (const [key, value] of Object.entries(obj.properties)) {
-      result.push(key + ": " + value);
-    }
-  } else if (rel) {
-    result = result.concat([
-      "kind: relation",
-      "object_type: " + rel.objectType,
-      "object_id: " + rel.objectId,
-      "relation: " + rel.relation,
-      "subject_type: " + rel.subjectType,
-      "subject_id: " + rel.subjectId,
-    ]);
+  for (const [key, value] of Object.entries(obj.properties)) {
+    result.push(key + ": " + value);
   }
+
+  return result.join("\n");
+}
+
+function relationToOutgoingMessage(
+  rel: DirectoryRelation,
+  opCode: OpCode,
+): string {
+  const result = [
+    "op_code: " + opCode,
+    "kind: relation",
+    "object_type: " + rel.objectType,
+    "object_id: " + rel.objectId,
+    "relation: " + rel.relation,
+    "subject_type: " + rel.subjectType,
+    "subject_id: " + rel.subjectId,
+  ];
 
   return result.join("\n");
 }
@@ -177,14 +175,10 @@ function transform(operation: Operation): string {
 
   switch (type) {
     case "create_object":
-      return createOutgoingMessage(OpCode.enum.set, {
-        obj: op.object,
-      });
+      return objectToOutgoingMessage(op.object, OpCode.enum.set);
 
     case "update_object":
-      return createOutgoingMessage(OpCode.enum.set, {
-        obj: op.object,
-      });
+      return objectToOutgoingMessage(op.object, OpCode.enum.set);
 
     case "delete_object": {
       const obj: DirectoryObject = {
@@ -192,18 +186,14 @@ function transform(operation: Operation): string {
         id: op.objectId,
         properties: {},
       };
-      return createOutgoingMessage(OpCode.enum.delete, { obj });
+      return objectToOutgoingMessage(obj, OpCode.enum.delete);
     }
 
     case "create_relation":
-      return createOutgoingMessage(OpCode.enum.set, {
-        rel: op.relation,
-      });
+      return relationToOutgoingMessage(op.relation, OpCode.enum.set);
 
     case "delete_relation":
-      return createOutgoingMessage(OpCode.enum.delete, {
-        rel: op.relation,
-      });
+      return relationToOutgoingMessage(op.relation, OpCode.enum.delete);
 
     default: {
       const _exhaustiveCheck: never = op;
