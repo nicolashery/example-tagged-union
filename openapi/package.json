@@ -2,9 +2,12 @@
   "name": "example-tagged-union-openapi",
   "version": "1.0.0",
   "dependencies": {
+    "@openapitools/openapi-generator-cli": "^2.15.3",
     "@redocly/cli": "^1.27.2"
   },
   "scripts": {
-    "preview": "redocly preview-docs spec.yaml"
+    "preview": "redocly preview-docs spec.yaml",
+    "generate-typescript": "openapi-generator-cli generate -g typescript-fetch -i spec.yaml -o gen/typescript",
+    "generate-go": "openapi-generator-cli generate -g go -i spec.yaml -o gen/go"
   }
 }

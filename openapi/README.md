@@ -11,3 +11,10 @@ Preview API docs using [Redocly](https://redocly.com/docs/cli/quickstart):
 ```
 npm run preview
 ```
+
+For code generation, make sure [Java](https://sdkman.io/) is installed then run:
+
+```
+npm run generate-typescript
+npm run generate-go
+```
