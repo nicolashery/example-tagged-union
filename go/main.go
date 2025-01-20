@@ -260,8 +260,8 @@ var OpCodeStringMap = map[OpCode]string{
 	OpCode_Delete: "delete",
 }
 
-func (t OpCode) String() string {
-	return OpCodeStringMap[t]
+func (o OpCode) String() string {
+	return OpCodeStringMap[o]
 }
 
 func (o *DirectoryObject) ToOutgoingMessage(opCode OpCode) string {

@@ -1,6 +1,7 @@
 module main
 
 import json
+import os
 
 enum ObjectType {
 	user
@@ -59,6 +60,74 @@ struct IncomingRequest {
 	operations []Operation
 }
 
+enum OpCode {
+	set
+	delete
+}
+
+fn (o OpCode) to_string() string {
+	return match o {
+		.set { 'set' }
+		.delete { 'delete' }
+	}
+}
+
+fn (o DirectoryObject) to_outgoing_message(op_code OpCode) string {
+	mut result := [
+		'op_code: ${op_code.to_string()}',
+		'kind: object',
+		'type: ${o.type.to_string()}',
+		'id: ${o.id}',
+	]
+
+	for key, value in o.properties {
+		result << '${key}: ${value}'
+	}
+
+	return result.join_lines()
+}
+
+fn (o DirectoryRelation) to_outgoing_message(op_code OpCode) string {
+	mut result := [
+		'op_code: ${op_code.to_string()}',
+		'kind: relation',
+		'object_type: ${o.object_type.to_string()}',
+		'object_id: ${o.object_id}',
+		'relation: ${o.relation}',
+		'subject_type: ${o.subject_type.to_string()}',
+		'subject_id: ${o.subject_id}',
+	]
+
+	return result.join_lines()
+}
+
+fn transform(op Operation) string {
+	return match op {
+		CreateObjectOperation {
+			op.object.to_outgoing_message(OpCode.set)
+		}
+		UpdateObjectOperation {
+			op.object.to_outgoing_message(OpCode.set)
+		}
+		DeleteObjectOperation {
+			DirectoryObject{
+				type: op.object_type
+				id:   op.object_id
+			}.to_outgoing_message(OpCode.delete)
+		}
+		CreateRelationOperation {
+			op.relation.to_outgoing_message(OpCode.set)
+		}
+		DeleteRelationOperation {
+			op.relation.to_outgoing_message(OpCode.delete)
+		}
+	}
+}
+
+fn transform_many(ops []Operation) string {
+	return ops.map(transform).join('\n\n')
+}
+
 fn example_operations() []Operation {
 	return [
 		CreateObjectOperation{
@@ -111,6 +180,22 @@ fn test() {
 	println(json.encode_pretty(request))
 }
 
+fn run() {
+	data := os.read_file('in.json') or {
+		eprintln('Error reading file: ${err}')
+		return
+	}
+
+	request := json.decode(IncomingRequest, data) or {
+		eprintln('Error decoding JSON: ${err}')
+		return
+	}
+
+	result := transform_many(request.operations)
+
+	println(result)
+}
+
 fn main() {
-	test()
+	run()
 }
