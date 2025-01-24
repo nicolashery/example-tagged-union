@@ -64,24 +64,30 @@ const (
 	OperationType_CreateObject OperationType = iota
 	OperationType_UpdateObject
 	OperationType_DeleteObject
+	OperationType_DeleteAllObjects
 	OperationType_CreateRelation
 	OperationType_DeleteRelation
+	OperationType_DeleteAllRelations
 )
 
 var OperationTypeStringMap = map[OperationType]string{
-	OperationType_CreateObject:   "create_object",
-	OperationType_UpdateObject:   "update_object",
-	OperationType_DeleteObject:   "delete_object",
-	OperationType_CreateRelation: "create_relation",
-	OperationType_DeleteRelation: "delete_relation",
+	OperationType_CreateObject:       "create_object",
+	OperationType_UpdateObject:       "update_object",
+	OperationType_DeleteObject:       "delete_object",
+	OperationType_DeleteAllObjects:   "delete_all_objects",
+	OperationType_CreateRelation:     "create_relation",
+	OperationType_DeleteRelation:     "delete_relation",
+	OperationType_DeleteAllRelations: "delete_all_relations",
 }
 
 var OperationTypeValueMap = map[string]OperationType{
-	"create_object":   OperationType_CreateObject,
-	"update_object":   OperationType_UpdateObject,
-	"delete_object":   OperationType_DeleteObject,
-	"create_relation": OperationType_CreateRelation,
-	"delete_relation": OperationType_DeleteRelation,
+	"create_object":        OperationType_CreateObject,
+	"update_object":        OperationType_UpdateObject,
+	"delete_object":        OperationType_DeleteObject,
+	"delete_all_objects":   OperationType_DeleteAllObjects,
+	"create_relation":      OperationType_CreateRelation,
+	"delete_relation":      OperationType_DeleteRelation,
+	"delete_all_relations": OperationType_DeleteAllRelations,
 }
 
 func (t OperationType) MarshalJSON() ([]byte, error) {
@@ -138,6 +144,13 @@ func (*DeleteObjectOperation) OperationType() OperationType {
 	return OperationType_DeleteObject
 }
 
+type DeleteAllObjectsOperation struct{}
+
+func (*DeleteAllObjectsOperation) isOperation() {}
+func (*DeleteAllObjectsOperation) OperationType() OperationType {
+	return OperationType_DeleteAllObjects
+}
+
 type CreateRelationOperation struct {
 	Relation DirectoryRelation `json:"relation"`
 }
@@ -156,6 +169,13 @@ func (*DeleteRelationOperation) OperationType() OperationType {
 	return OperationType_DeleteRelation
 }
 
+type DeleteAllRelationsOperation struct{}
+
+func (*DeleteAllRelationsOperation) isOperation() {}
+func (*DeleteAllRelationsOperation) OperationType() OperationType {
+	return OperationType_DeleteAllRelations
+}
+
 type OperationWrapper struct {
 	Type  OperationType `json:"type"`
 	Value Operation     `json:"value"`
@@ -170,9 +190,13 @@ func (o OperationWrapper) MarshalJSON() ([]byte, error) {
 		value = v
 	case *DeleteObjectOperation:
 		value = v
+	case *DeleteAllObjectsOperation:
+		value = v
 	case *CreateRelationOperation:
 		value = v
 	case *DeleteRelationOperation:
+		value = v
+	case *DeleteAllRelationsOperation:
 		value = v
 	}
 
@@ -180,10 +204,15 @@ func (o OperationWrapper) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("unknown operation type: %T", o.Value)
 	}
 
-	return json.Marshal(map[string]any{
-		"type":  o.Type,
-		"value": value,
-	})
+	temp := struct {
+		Type  OperationType `json:"type"`
+		Value any           `json:"value"`
+	}{
+		Type:  o.Type,
+		Value: value,
+	}
+
+	return json.Marshal(temp)
 }
 
 func (o *OperationWrapper) UnmarshalJSON(data []byte) error {
@@ -205,10 +234,14 @@ func (o *OperationWrapper) UnmarshalJSON(data []byte) error {
 		op = &UpdateObjectOperation{}
 	case OperationType_DeleteObject:
 		op = &DeleteObjectOperation{}
+	case OperationType_DeleteAllObjects:
+		op = &DeleteAllObjectsOperation{}
 	case OperationType_CreateRelation:
 		op = &CreateRelationOperation{}
 	case OperationType_DeleteRelation:
 		op = &DeleteRelationOperation{}
+	case OperationType_DeleteAllRelations:
+		op = &DeleteAllRelationsOperation{}
 	}
 
 	if op == nil {
@@ -264,6 +297,22 @@ func (o OpCode) String() string {
 	return OpCodeStringMap[o]
 }
 
+type DirectoryKind int
+
+const (
+	DirectoryKind_Object DirectoryKind = iota
+	DirectoryKind_Relation
+)
+
+var DirectoryKindStringMap = map[DirectoryKind]string{
+	DirectoryKind_Object:   "object",
+	DirectoryKind_Relation: "relation",
+}
+
+func (k DirectoryKind) String() string {
+	return DirectoryKindStringMap[k]
+}
+
 func (o *DirectoryObject) ToOutgoingMessage(opCode OpCode) string {
 	var result []string
 	result = append(result, "op_code: "+opCode.String())
@@ -291,6 +340,15 @@ func (r *DirectoryRelation) ToOutgoingMessage(opCode OpCode) string {
 	return strings.Join(result, "\n")
 }
 
+func DeleteAllOutgoingMessage(kind DirectoryKind) string {
+	var result []string
+	result = append(result, "op_code: "+OpCode_Delete.String())
+	result = append(result, "kind: "+kind.String())
+	result = append(result, "all: true")
+
+	return strings.Join(result, "\n")
+}
+
 func transform(operation Operation) string {
 	var result string
 	switch op := operation.(type) {
@@ -305,10 +363,14 @@ func transform(operation Operation) string {
 			Properties: map[string]string{},
 		}
 		result = obj.ToOutgoingMessage(OpCode_Delete)
+	case *DeleteAllObjectsOperation:
+		result = DeleteAllOutgoingMessage(DirectoryKind_Object)
 	case *CreateRelationOperation:
 		result = op.Relation.ToOutgoingMessage(OpCode_Set)
 	case *DeleteRelationOperation:
-		return op.Relation.ToOutgoingMessage(OpCode_Delete)
+		result = op.Relation.ToOutgoingMessage(OpCode_Delete)
+	case *DeleteAllRelationsOperation:
+		result = DeleteAllOutgoingMessage(DirectoryKind_Relation)
 	}
 
 	return result
@@ -345,6 +407,7 @@ var exampleOperations = []Operation{
 		ObjectType: ObjectType_Group,
 		ObjectID:   "c9b58dd9-b4f6-4325-ba52-3d8d70857363",
 	},
+	&DeleteAllObjectsOperation{},
 	&CreateRelationOperation{
 		Relation: DirectoryRelation{
 			ObjectType:  ObjectType_Group,
@@ -363,6 +426,7 @@ var exampleOperations = []Operation{
 			SubjectID:   "f50fd4aa3-d632-46d6-92da-21bcc1391287",
 		},
 	},
+	&DeleteAllRelationsOperation{},
 }
 
 func test() {

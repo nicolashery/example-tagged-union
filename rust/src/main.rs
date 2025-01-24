@@ -70,13 +70,15 @@ struct DeleteRelationOperation {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 enum Operation {
     CreateObject(CreateObjectOperation),
     UpdateObject(UpdateObjectOperation),
     DeleteObject(DeleteObjectOperation),
+    DeleteAllObjects,
     CreateRelation(CreateRelationOperation),
     DeleteRelation(DeleteRelationOperation),
+    DeleteAllRelations,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -101,10 +103,25 @@ impl fmt::Display for OpCode {
     }
 }
 
+enum DirectoryKind {
+    Object,
+    Relation,
+}
+
+impl fmt::Display for DirectoryKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let output = match self {
+            DirectoryKind::Object => "object",
+            DirectoryKind::Relation => "relation",
+        };
+        write!(f, "{}", output)
+    }
+}
+
 fn object_to_outgoing_message(obj: &DirectoryObject, op_code: OpCode) -> String {
     let mut result = vec![
         format!("op_code: {}", op_code),
-        "kind: object".to_string(),
+        format!("kind: {}", DirectoryKind::Object),
         format!("type: {}", obj.object_type),
         format!("id: {}", obj.id),
     ];
@@ -119,12 +136,22 @@ fn object_to_outgoing_message(obj: &DirectoryObject, op_code: OpCode) -> String 
 fn relation_to_outgoing_message(rel: &DirectoryRelation, op_code: OpCode) -> String {
     let result = vec![
         format!("op_code: {}", op_code),
-        "kind: relation".to_string(),
+        format!("kind: {}", DirectoryKind::Relation),
         format!("object_type: {}", rel.object_type),
         format!("object_id: {}", rel.object_id),
         format!("relation: {}", rel.relation),
         format!("subject_type: {}", rel.subject_type),
         format!("subject_id: {}", rel.subject_id),
+    ];
+
+    result.join("\n")
+}
+
+fn delete_all_outgoing_message(kind: DirectoryKind) -> String {
+    let result = vec![
+        format!("op_code: {}", OpCode::Delete),
+        format!("kind: {}", kind),
+        "all: true".to_string(),
     ];
 
     result.join("\n")
@@ -142,8 +169,10 @@ fn transform(operation: &Operation) -> String {
             };
             object_to_outgoing_message(&obj, OpCode::Delete)
         }
+        Operation::DeleteAllObjects => delete_all_outgoing_message(DirectoryKind::Object),
         Operation::CreateRelation(op) => relation_to_outgoing_message(&op.relation, OpCode::Set),
         Operation::DeleteRelation(op) => relation_to_outgoing_message(&op.relation, OpCode::Delete),
+        Operation::DeleteAllRelations => delete_all_outgoing_message(DirectoryKind::Relation),
     }
 }
 
@@ -179,6 +208,7 @@ fn example_operations() -> Vec<Operation> {
             object_type: ObjectType::Group,
             object_id: "c9b58dd9-b4f6-4325-ba52-3d8d70857363".to_string(),
         }),
+        Operation::DeleteAllObjects,
         Operation::CreateRelation(CreateRelationOperation {
             relation: DirectoryRelation {
                 object_type: ObjectType::Group,
@@ -197,6 +227,7 @@ fn example_operations() -> Vec<Operation> {
                 subject_id: "f50fd4aa3-d632-46d6-92da-21bcc1391287".to_string(),
             },
         }),
+        Operation::DeleteAllRelations,
     ]
 }
 

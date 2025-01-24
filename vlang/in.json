@@ -26,6 +26,9 @@
 			"object_id": "c9b58dd9-b4f6-4325-ba52-3d8d70857363"
 		},
 		{
+			"_type": "DeleteAllObjectsOperation"
+		},
+		{
 			"_type": "CreateRelationOperation",
 			"relation": {
 				"object_type": "group",
@@ -44,6 +47,9 @@
 				"subject_type": "user",
 				"subject_id": "f50fd4aa3-d632-46d6-92da-21bcc1391287"
 			}
+		},
+		{
+			"_type": "DeleteAllRelationsOperation"
 		}
 	]
 }

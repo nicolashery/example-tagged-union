@@ -1,5 +1,12 @@
 edition = "2023";
 
+package directory;
+
+service DirectoryService {
+  rpc AddOperation(AddOperationRequest) returns (AddOperationResponse) {}
+  rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse) {}
+}
+
 enum ObjectType {
   OBJECT_TYPE_UNSPECIFIED = 0;
   OBJECT_TYPE_USER = 1;
@@ -33,6 +40,8 @@ message DeleteObjectOperation {
   string object_id = 2;
 }
 
+message DeleteAllObjectsOperation {}
+
 message CreateRelationOperation {
   DirectoryRelation relation = 1;
 }
@@ -41,12 +50,30 @@ message DeleteRelationOperation {
   DirectoryRelation relation = 1;
 }
 
-message Request {
-  oneof operation {
+message DeleteAllRelationsOperation {}
+
+message Operation {
+  oneof value {
     CreateObjectOperation create_object = 1;
     UpdateObjectOperation update_object = 2;
     DeleteObjectOperation delete_object = 3;
     CreateRelationOperation create_relation = 4;
     DeleteRelationOperation delete_relation = 5;
+    DeleteAllObjectsOperation delete_all_objects = 6;
+    DeleteAllRelationsOperation delete_all_relations = 7;
   }
+}
+
+message AddOperationRequest {
+  Operation operation = 1;
+}
+
+message AddOperationResponse {
+  bool success = 1;
+}
+
+message ListOperationsRequest {}
+
+message ListOperationsResponse {
+  repeated Operation operations = 1;
 }

@@ -42,6 +42,8 @@ struct DeleteObjectOperation {
 	object_id   string
 }
 
+struct DeleteAllObjectsOperation {}
+
 struct CreateRelationOperation {
 	relation DirectoryRelation
 }
@@ -50,11 +52,15 @@ struct DeleteRelationOperation {
 	relation DirectoryRelation
 }
 
+struct DeleteAllRelationsOperation {}
+
 type Operation = CreateObjectOperation
 	| UpdateObjectOperation
 	| DeleteObjectOperation
+	| DeleteAllObjectsOperation
 	| CreateRelationOperation
 	| DeleteRelationOperation
+	| DeleteAllRelationsOperation
 
 struct IncomingRequest {
 	operations []Operation
@@ -72,10 +78,22 @@ fn (o OpCode) to_string() string {
 	}
 }
 
+enum DirectoryKind {
+	object
+	relation
+}
+
+fn (o DirectoryKind) to_string() string {
+	return match o {
+		.object { 'object' }
+		.relation { 'relation' }
+	}
+}
+
 fn (o DirectoryObject) to_outgoing_message(op_code OpCode) string {
 	mut result := [
 		'op_code: ${op_code.to_string()}',
-		'kind: object',
+		'kind: ${DirectoryKind.object.to_string()}',
 		'type: ${o.type.to_string()}',
 		'id: ${o.id}',
 	]
@@ -90,7 +108,7 @@ fn (o DirectoryObject) to_outgoing_message(op_code OpCode) string {
 fn (o DirectoryRelation) to_outgoing_message(op_code OpCode) string {
 	mut result := [
 		'op_code: ${op_code.to_string()}',
-		'kind: relation',
+		'kind: ${DirectoryKind.relation.to_string()}',
 		'object_type: ${o.object_type.to_string()}',
 		'object_id: ${o.object_id}',
 		'relation: ${o.relation}',
@@ -99,6 +117,14 @@ fn (o DirectoryRelation) to_outgoing_message(op_code OpCode) string {
 	]
 
 	return result.join_lines()
+}
+
+fn delete_all_outgoing_message(kind DirectoryKind) string {
+	return [
+		'op_code: ${OpCode.delete.to_string()}',
+		'kind: ${kind.to_string()}',
+		'all: true',
+	].join_lines()
 }
 
 fn transform(op Operation) string {
@@ -115,11 +141,17 @@ fn transform(op Operation) string {
 				id:   op.object_id
 			}.to_outgoing_message(OpCode.delete)
 		}
+		DeleteAllObjectsOperation {
+			delete_all_outgoing_message(DirectoryKind.object)
+		}
 		CreateRelationOperation {
 			op.relation.to_outgoing_message(OpCode.set)
 		}
 		DeleteRelationOperation {
 			op.relation.to_outgoing_message(OpCode.delete)
+		}
+		DeleteAllRelationsOperation {
+			delete_all_outgoing_message(DirectoryKind.relation)
 		}
 	}
 }
@@ -152,6 +184,7 @@ fn example_operations() []Operation {
 			object_type: ObjectType.group
 			object_id:   'c9b58dd9-b4f6-4325-ba52-3d8d70857363'
 		},
+		DeleteAllObjectsOperation{},
 		CreateRelationOperation{
 			relation: DirectoryRelation{
 				object_type:  ObjectType.group
@@ -170,6 +203,7 @@ fn example_operations() []Operation {
 				subject_id:   'f50fd4aa3-d632-46d6-92da-21bcc1391287'
 			}
 		},
+		DeleteAllRelationsOperation{},
 	]
 }
 

@@ -15,6 +15,10 @@ kind: object
 type: group
 id: c9b58dd9-b4f6-4325-ba52-3d8d70857363
 
+op_code: delete
+kind: object
+all: true
+
 op_code: set
 kind: relation
 object_type: group
@@ -30,3 +34,7 @@ object_id: c3e65031-7455-45c8-acbd-59ec59d3e769
 relation: member
 subject_type: user
 subject_id: f50fd4aa3-d632-46d6-92da-21bcc1391287
+
+op_code: delete
+kind: relation
+all: true

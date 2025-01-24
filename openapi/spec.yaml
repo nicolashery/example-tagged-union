@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Operations API
+  title: Directory API
   version: 1.0.0
 paths:
   /operations:
@@ -42,17 +42,21 @@ components:
       discriminator:
         propertyName: type
         mapping:
-          "create_object": "#/components/schemas/CreateObjectOperationWrapper"
-          "update_object": "#/components/schemas/UpdateObjectOperationWrapper"
-          "delete_object": "#/components/schemas/DeleteObjectOperationWrapper"
-          "create_relation": "#/components/schemas/CreateRelationOperationWrapper"
-          "delete_relation": "#/components/schemas/DeleteRelationOperationWrapper"
+          "create_object": "#/components/schemas/CreateObjectOperation"
+          "update_object": "#/components/schemas/UpdateObjectOperation"
+          "delete_object": "#/components/schemas/DeleteObjectOperation"
+          "delete_all_objects": "#/components/schemas/DeleteAllObjectsOperation"
+          "create_relation": "#/components/schemas/CreateRelationOperation"
+          "delete_relation": "#/components/schemas/DeleteRelationOperation"
+          "delete_all_relations": "#/components/schemas/DeleteAllRelationsOperation"
       oneOf:
-        - $ref: "#/components/schemas/CreateObjectOperationWrapper"
-        - $ref: "#/components/schemas/UpdateObjectOperationWrapper"
-        - $ref: "#/components/schemas/DeleteObjectOperationWrapper"
-        - $ref: "#/components/schemas/CreateRelationOperationWrapper"
-        - $ref: "#/components/schemas/DeleteRelationOperationWrapper"
+        - $ref: "#/components/schemas/CreateObjectOperation"
+        - $ref: "#/components/schemas/UpdateObjectOperation"
+        - $ref: "#/components/schemas/DeleteObjectOperation"
+        - $ref: "#/components/schemas/DeleteAllObjectsOperation"
+        - $ref: "#/components/schemas/CreateRelationOperation"
+        - $ref: "#/components/schemas/DeleteRelationOperation"
+        - $ref: "#/components/schemas/DeleteAllRelationsOperation"
     CreateObjectOperationWrapper:
       type: object
       properties:
@@ -91,30 +95,50 @@ components:
     CreateObjectOperation:
       type: object
       properties:
+        type:
+          type: string
         object:
           $ref: "#/components/schemas/DirectoryObject"
     UpdateObjectOperation:
       type: object
       properties:
+        type:
+          type: string
         object:
           $ref: "#/components/schemas/DirectoryObject"
     DeleteObjectOperation:
       type: object
       properties:
+        type:
+          type: string
         objectType:
           $ref: "#/components/schemas/ObjectType"
         objectId:
           type: string
+    DeleteAllObjectsOperation:
+      type: object
+      properties:
+        type:
+          type: string
     CreateRelationOperation:
       type: object
       properties:
+        type:
+          type: string
         relation:
           $ref: "#/components/schemas/DirectoryRelation"
     DeleteRelationOperation:
       type: object
       properties:
+        type:
+          type: string
         relation:
           $ref: "#/components/schemas/DirectoryRelation"
+    DeleteAllRelationsOperation:
+      type: object
+      properties:
+        type:
+          type: string
     DirectoryObject:
       type: object
       properties:

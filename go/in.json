@@ -32,6 +32,10 @@
       }
     },
     {
+      "type": "delete_all_objects",
+      "value": {}
+    },
+    {
       "type": "create_relation",
       "value": {
         "relation": {
@@ -54,6 +58,10 @@
           "subject_id": "f50fd4aa3-d632-46d6-92da-21bcc1391287"
         }
       }
+    },
+    {
+      "type": "delete_all_relations",
+      "value": {}
     }
   ]
 }

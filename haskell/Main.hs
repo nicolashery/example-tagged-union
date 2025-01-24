@@ -130,8 +130,10 @@ data Operation
   = OperationCreateObject CreateObjectOperation
   | OperationUpdateObject UpdateObjectOperation
   | OperationDeleteObject DeleteObjectOperation
+  | OperationDeleteAllObjects
   | OperationCreateRelation CreateRelationOperation
   | OperationDeleteRelation DeleteRelationOperation
+  | OperationDeleteAllRelations
   deriving (Show, Generic)
 
 instance FromJSON Operation where
@@ -161,12 +163,22 @@ opCodeToText v = case v of
   OpCodeSet -> "set"
   OpCodeDelete -> "delete"
 
+data DirectoryKind
+  = DirectoryKindObject
+  | DirectoryKindRelation
+  deriving (Show, Generic)
+
+directoryKindToText :: DirectoryKind -> Text
+directoryKindToText v = case v of
+  DirectoryKindObject -> "object"
+  DirectoryKindRelation -> "relation"
+
 objectToOutgoingMessage :: DirectoryObject -> OpCode -> Text
 objectToOutgoingMessage obj opCode =
   let props = map (\(k, v) -> k <> ": " <> v) (Map.toList $ directoryObjectProperties obj)
    in T.intercalate "\n" $
         [ "op_code: " <> opCodeToText opCode,
-          "kind: object",
+          "kind: " <> directoryKindToText DirectoryKindObject,
           "type: " <> (objectTypeToText $ directoryObjectType obj),
           "id: " <> directoryObjectId obj
         ]
@@ -177,12 +189,21 @@ relationToOutgoingMessage rel opCode =
   T.intercalate
     "\n"
     [ "op_code: " <> opCodeToText opCode,
-      "kind: relation",
+      "kind: " <> directoryKindToText DirectoryKindRelation,
       "object_type: " <> (objectTypeToText $ directoryRelationObjectType rel),
       "object_id: " <> directoryRelationObjectId rel,
       "relation: " <> directoryRelationRelation rel,
       "subject_type: " <> (objectTypeToText $ directoryRelationSubjectType rel),
       "subject_id: " <> directoryRelationSubjectId rel
+    ]
+
+deleteAllOutgoingMessage :: DirectoryKind -> Text
+deleteAllOutgoingMessage kind =
+  T.intercalate
+    "\n"
+    [ "op_code: " <> opCodeToText OpCodeDelete,
+      "kind: " <> directoryKindToText kind,
+      "all: true"
     ]
 
 transform :: Operation -> Text
@@ -199,10 +220,14 @@ transform operation = case operation of
               directoryObjectProperties = Map.empty
             }
      in objectToOutgoingMessage obj OpCodeDelete
+  OperationDeleteAllObjects ->
+    deleteAllOutgoingMessage DirectoryKindObject
   OperationCreateRelation op ->
     relationToOutgoingMessage (createRelationOperationRelation op) OpCodeSet
   OperationDeleteRelation op ->
     relationToOutgoingMessage (deleteRelationOperationRelation op) OpCodeDelete
+  OperationDeleteAllRelations ->
+    deleteAllOutgoingMessage DirectoryKindRelation
 
 transformMany :: [Operation] -> Text
 transformMany ops = T.intercalate "\n\n" (map transform ops)
@@ -232,6 +257,7 @@ exampleOperations =
         { deleteObjectOperationObjectType = ObjectTypeGroup,
           deleteObjectOperationObjectId = "c9b58dd9-b4f6-4325-ba52-3d8d70857363"
         },
+    OperationDeleteAllObjects,
     OperationCreateRelation
       CreateRelationOperation
         { createRelationOperationRelation =
@@ -253,7 +279,8 @@ exampleOperations =
                 directoryRelationSubjectType = ObjectTypeUser,
                 directoryRelationSubjectId = "f50fd4aa3-d632-46d6-92da-21bcc1391287"
               }
-        }
+        },
+    OperationDeleteAllRelations
   ]
 
 defaultToJSON :: (Generic a, GToJSON Zero (Rep a)) => String -> (a -> Value)
