@@ -7,5 +7,6 @@ linters-settings:
     check:
       - switch
       - map
+    ignore-enum-members: "+_Unknown"
   gochecksumtype:
     default-signifies-exhaustive: false

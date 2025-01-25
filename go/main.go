@@ -61,7 +61,8 @@ type DirectoryRelation struct {
 type OperationType int
 
 const (
-	OperationType_CreateObject OperationType = iota
+	OperationType_Unknown OperationType = iota
+	OperationType_CreateObject
 	OperationType_UpdateObject
 	OperationType_DeleteObject
 	OperationType_DeleteAllObjects
@@ -177,57 +178,64 @@ func (*DeleteAllRelationsOperation) OperationType() OperationType {
 }
 
 type OperationWrapper struct {
-	Type  OperationType `json:"type"`
-	Value Operation     `json:"value"`
+	Value Operation
 }
 
 func (o OperationWrapper) MarshalJSON() ([]byte, error) {
-	var value any
-	switch v := o.Value.(type) {
-	case *CreateObjectOperation:
-		value = v
-	case *UpdateObjectOperation:
-		value = v
-	case *DeleteObjectOperation:
-		value = v
-	case *DeleteAllObjectsOperation:
-		value = v
-	case *CreateRelationOperation:
-		value = v
-	case *DeleteRelationOperation:
-		value = v
-	case *DeleteAllRelationsOperation:
-		value = v
+	var tagged struct {
+		Type  OperationType   `json:"type"`
+		Value json.RawMessage `json:"value,omitempty"`
 	}
 
-	if value == nil {
+	var value json.RawMessage
+	var err error
+	switch v := o.Value.(type) {
+	case *CreateObjectOperation:
+		tagged.Type = OperationType_CreateObject
+		value, err = json.Marshal(v)
+	case *UpdateObjectOperation:
+		tagged.Type = OperationType_UpdateObject
+		value, err = json.Marshal(v)
+	case *DeleteObjectOperation:
+		tagged.Type = OperationType_DeleteObject
+		value, err = json.Marshal(v)
+	case *DeleteAllObjectsOperation:
+		tagged.Type = OperationType_DeleteAllObjects
+	case *CreateRelationOperation:
+		tagged.Type = OperationType_CreateRelation
+		value, err = json.Marshal(v)
+	case *DeleteRelationOperation:
+		tagged.Type = OperationType_DeleteRelation
+		value, err = json.Marshal(v)
+	case *DeleteAllRelationsOperation:
+		tagged.Type = OperationType_DeleteAllRelations
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if tagged.Type == OperationType_Unknown {
 		return nil, fmt.Errorf("unknown operation type: %T", o.Value)
 	}
 
-	temp := struct {
-		Type  OperationType `json:"type"`
-		Value any           `json:"value"`
-	}{
-		Type:  o.Type,
-		Value: value,
-	}
+	tagged.Value = value
 
-	return json.Marshal(temp)
+	return json.Marshal(tagged)
 }
 
 func (o *OperationWrapper) UnmarshalJSON(data []byte) error {
-	var temp struct {
+	var tagged struct {
 		Type  OperationType   `json:"type"`
-		Value json.RawMessage `json:"value"`
+		Value json.RawMessage `json:"value,omitempty"`
 	}
 
-	if err := json.Unmarshal(data, &temp); err != nil {
+	if err := json.Unmarshal(data, &tagged); err != nil {
 		return err
 	}
 
-	o.Type = temp.Type
 	var op Operation
-	switch temp.Type {
+	switch tagged.Type {
 	case OperationType_CreateObject:
 		op = &CreateObjectOperation{}
 	case OperationType_UpdateObject:
@@ -245,10 +253,15 @@ func (o *OperationWrapper) UnmarshalJSON(data []byte) error {
 	}
 
 	if op == nil {
-		return fmt.Errorf("unknown operation type: %s", temp.Type)
+		return fmt.Errorf("unknown operation type: %s", tagged.Type)
 	}
 
-	if err := json.Unmarshal(temp.Value, op); err != nil {
+	if tagged.Value == nil {
+		o.Value = op
+		return nil
+	}
+
+	if err := json.Unmarshal(tagged.Value, op); err != nil {
 		return err
 	}
 
@@ -264,7 +277,6 @@ func NewIncomingRequest(operations []Operation) IncomingRequest {
 	var operationWrappers []OperationWrapper
 	for _, op := range operations {
 		operationWrappers = append(operationWrappers, OperationWrapper{
-			Type:  op.OperationType(),
 			Value: op,
 		})
 	}
