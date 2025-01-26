@@ -42,85 +42,99 @@ type DirectoryRelation = {
 };
 
 const CreateObjectOperation = z.object({
+  type: z.literal("create_object"),
   object: DirectoryObject,
 });
 
 // type CreateObjectOperation = z.infer<typeof CreateObjectOperation>;
 type CreateObjectOperation = {
+  type: "create_object";
   object: DirectoryObject;
 };
 
 const UpdateObjectOperation = z.object({
+  type: z.literal("update_object"),
   object: DirectoryObject,
 });
 
 // type UpdateObjectOperation = z.infer<typeof UpdateObjectOperation>;
 type UpdateObjectOperation = {
+  type: "update_object";
   object: DirectoryObject;
 };
 
 const DeleteObjectOperation = z.object({
+  type: z.literal("delete_object"),
   objectType: ObjectType,
   objectId: z.string(),
 });
 
 // type DeleteObjectOperation = z.infer<typeof DeleteObjectOperation>;
 type DeleteObjectOperation = {
+  type: "delete_object";
   objectType: ObjectType;
   objectId: string;
 };
 
+const DeleteAllObjectsOperation = z.object({
+  type: z.literal("delete_all_objects"),
+});
+
+// type DeleteAllObjectsOperation = z.infer<typeof DeleteAllObjectsOperation>;
+type DeleteAllObjectsOperation = {
+  type: "delete_all_objects";
+};
+
 const CreateRelationOperation = z.object({
+  type: z.literal("create_relation"),
   relation: DirectoryRelation,
 });
 
 // type CreateRelationOperation = z.infer<typeof CreateRelationOperation>;
 type CreateRelationOperation = {
+  type: "create_relation";
   relation: DirectoryRelation;
 };
 
 const DeleteRelationOperation = z.object({
+  type: z.literal("delete_relation"),
   relation: DirectoryRelation,
 });
 
 // type DeleteRelationOperation = z.infer<typeof DeleteRelationOperation>;
 type DeleteRelationOperation = {
+  type: "delete_relation";
   relation: DirectoryRelation;
 };
 
+const DeleteAllRelationsOperation = z.object({
+  type: z.literal("delete_all_relations"),
+});
+
+// type DeleteAllRelationsOperation = z.infer<typeof DeleteAllRelationsOperation>;
+type DeleteAllRelationsOperation = {
+  type: "delete_all_relations";
+};
+
 const Operation = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("create_object"),
-  }).merge(CreateObjectOperation),
-  z.object({
-    type: z.literal("update_object"),
-  }).merge(UpdateObjectOperation),
-  z.object({
-    type: z.literal("delete_object"),
-  }).merge(DeleteObjectOperation),
-  z.object({
-    type: z.literal("delete_all_objects"),
-  }),
-  z.object({
-    type: z.literal("create_relation"),
-  }).merge(CreateRelationOperation),
-  z.object({
-    type: z.literal("delete_relation"),
-  }).merge(DeleteRelationOperation),
-  z.object({
-    type: z.literal("delete_all_relations"),
-  }),
+  CreateObjectOperation,
+  UpdateObjectOperation,
+  DeleteObjectOperation,
+  DeleteAllObjectsOperation,
+  CreateRelationOperation,
+  DeleteRelationOperation,
+  DeleteAllRelationsOperation,
 ]);
 
 // type Operation = z.infer<typeof Operation>;
 type Operation =
-  | { type: "create_object" } & CreateObjectOperation
-  | { type: "update_object" } & UpdateObjectOperation
-  | { type: "delete_object" } & DeleteObjectOperation
-  | { type: "delete_all_objects" }
-  | { type: "create_relation" } & CreateRelationOperation
-  | { type: "delete_relation" } & DeleteRelationOperation
-  | { type: "delete_all_relations" };
+  | CreateObjectOperation
+  | UpdateObjectOperation
+  | DeleteObjectOperation
+  | DeleteAllObjectsOperation
+  | CreateRelationOperation
+  | DeleteRelationOperation
+  | DeleteAllRelationsOperation;
 
 const IncomingRequest = z.object({
   operations: z.array(Operation),
