@@ -61,8 +61,7 @@ type DirectoryRelation struct {
 type OperationType int
 
 const (
-	OperationType_Unknown OperationType = iota
-	OperationType_CreateObject
+	OperationType_CreateObject OperationType = iota
 	OperationType_UpdateObject
 	OperationType_DeleteObject
 	OperationType_DeleteAllObjects
@@ -187,39 +186,15 @@ func (o OperationWrapper) MarshalJSON() ([]byte, error) {
 		Value json.RawMessage `json:"value,omitempty"`
 	}
 
-	var value json.RawMessage
-	var err error
-	switch v := o.Value.(type) {
-	case *CreateObjectOperation:
-		tagged.Type = OperationType_CreateObject
-		value, err = json.Marshal(v)
-	case *UpdateObjectOperation:
-		tagged.Type = OperationType_UpdateObject
-		value, err = json.Marshal(v)
-	case *DeleteObjectOperation:
-		tagged.Type = OperationType_DeleteObject
-		value, err = json.Marshal(v)
-	case *DeleteAllObjectsOperation:
-		tagged.Type = OperationType_DeleteAllObjects
-	case *CreateRelationOperation:
-		tagged.Type = OperationType_CreateRelation
-		value, err = json.Marshal(v)
-	case *DeleteRelationOperation:
-		tagged.Type = OperationType_DeleteRelation
-		value, err = json.Marshal(v)
-	case *DeleteAllRelationsOperation:
-		tagged.Type = OperationType_DeleteAllRelations
-	}
-
+	tagged.Type = o.Value.OperationType()
+	value, err := json.Marshal(o.Value)
 	if err != nil {
 		return nil, err
 	}
 
-	if tagged.Type == OperationType_Unknown {
-		return nil, fmt.Errorf("unknown operation type: %T", o.Value)
+	if string(value) != "{}" {
+		tagged.Value = value
 	}
-
-	tagged.Value = value
 
 	return json.Marshal(tagged)
 }
