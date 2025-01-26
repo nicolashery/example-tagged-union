@@ -180,7 +180,7 @@ type OperationWrapper struct {
 	Value Operation
 }
 
-func (o OperationWrapper) MarshalJSON() ([]byte, error) {
+func (o *OperationWrapper) MarshalJSONAdjacentlyTagged() ([]byte, error) {
 	var tagged struct {
 		Type  OperationType   `json:"type"`
 		Value json.RawMessage `json:"value,omitempty"`
@@ -196,10 +196,105 @@ func (o OperationWrapper) MarshalJSON() ([]byte, error) {
 		tagged.Value = value
 	}
 
-	return json.Marshal(tagged)
+	return json.Marshal(&tagged)
 }
 
-func (o *OperationWrapper) UnmarshalJSON(data []byte) error {
+func (o *OperationWrapper) MarshalJSONInternallyTagged1() ([]byte, error) {
+	var data []byte
+	var err error
+
+	switch op := o.Value.(type) {
+	case *CreateObjectOperation:
+		tagged := struct {
+			Type OperationType `json:"type"`
+			CreateObjectOperation
+		}{
+			Type:                  op.OperationType(),
+			CreateObjectOperation: *op,
+		}
+		data, err = json.Marshal(&tagged)
+	case *UpdateObjectOperation:
+		tagged := struct {
+			Type OperationType `json:"type"`
+			UpdateObjectOperation
+		}{
+			Type:                  op.OperationType(),
+			UpdateObjectOperation: *op,
+		}
+		data, err = json.Marshal(&tagged)
+	case *DeleteObjectOperation:
+		tagged := struct {
+			Type OperationType `json:"type"`
+			DeleteObjectOperation
+		}{
+			Type:                  op.OperationType(),
+			DeleteObjectOperation: *op,
+		}
+		data, err = json.Marshal(&tagged)
+	case *DeleteAllObjectsOperation:
+		tagged := struct {
+			Type OperationType `json:"type"`
+			DeleteAllObjectsOperation
+		}{
+			Type:                      op.OperationType(),
+			DeleteAllObjectsOperation: *op,
+		}
+		data, err = json.Marshal(&tagged)
+	case *CreateRelationOperation:
+		tagged := struct {
+			Type OperationType `json:"type"`
+			CreateRelationOperation
+		}{
+			Type:                    op.OperationType(),
+			CreateRelationOperation: *op,
+		}
+		data, err = json.Marshal(&tagged)
+	case *DeleteRelationOperation:
+		tagged := struct {
+			Type OperationType `json:"type"`
+			DeleteRelationOperation
+		}{
+			Type:                    op.OperationType(),
+			DeleteRelationOperation: *op,
+		}
+		data, err = json.Marshal(&tagged)
+	case *DeleteAllRelationsOperation:
+		tagged := struct {
+			Type OperationType `json:"type"`
+			DeleteAllRelationsOperation
+		}{
+			Type:                        op.OperationType(),
+			DeleteAllRelationsOperation: *op,
+		}
+		data, err = json.Marshal(&tagged)
+	}
+
+	return data, err
+}
+
+func (o *OperationWrapper) MarshalJSONInternallyTagged2() ([]byte, error) {
+	op := o.Value
+
+	data, err := json.Marshal(&op)
+	if err != nil {
+		return nil, err
+	}
+
+	var tagged map[string]any
+	if err := json.Unmarshal(data, &tagged); err != nil {
+		return nil, err
+	}
+
+	tagged["type"] = op.OperationType()
+
+	return json.Marshal(&tagged)
+}
+
+func (o *OperationWrapper) MarshalJSON() ([]byte, error) {
+	return o.MarshalJSONInternallyTagged2()
+}
+
+func (o *OperationWrapper) UnmarshalJSONAdjacentlyTagged(data []byte) error {
 	var tagged struct {
 		Type  OperationType   `json:"type"`
 		Value json.RawMessage `json:"value,omitempty"`
@@ -242,6 +337,49 @@ func (o *OperationWrapper) UnmarshalJSON(data []byte) error {
 
 	o.Value = op
 	return nil
+}
+
+func (o *OperationWrapper) UnmarshalJSONInternallyTagged(data []byte) error {
+	var tag struct {
+		Type OperationType `json:"type"`
+	}
+
+	if err := json.Unmarshal(data, &tag); err != nil {
+		return err
+	}
+
+	var op Operation
+	switch tag.Type {
+	case OperationType_CreateObject:
+		op = &CreateObjectOperation{}
+	case OperationType_UpdateObject:
+		op = &UpdateObjectOperation{}
+	case OperationType_DeleteObject:
+		op = &DeleteObjectOperation{}
+	case OperationType_DeleteAllObjects:
+		op = &DeleteAllObjectsOperation{}
+	case OperationType_CreateRelation:
+		op = &CreateRelationOperation{}
+	case OperationType_DeleteRelation:
+		op = &DeleteRelationOperation{}
+	case OperationType_DeleteAllRelations:
+		op = &DeleteAllRelationsOperation{}
+	}
+
+	if op == nil {
+		return fmt.Errorf("unknown operation type: %s", tag.Type)
+	}
+
+	if err := json.Unmarshal(data, op); err != nil {
+		return err
+	}
+
+	o.Value = op
+	return nil
+}
+
+func (o *OperationWrapper) UnmarshalJSON(data []byte) error {
+	return o.UnmarshalJSONInternallyTagged(data)
 }
 
 type IncomingRequest struct {
