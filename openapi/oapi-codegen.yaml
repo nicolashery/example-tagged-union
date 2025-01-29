@@ -1,4 +1,4 @@
 package: api
-output: gen/api.go
+output: gen/oapi-codegen/api.go
 generate:
   models: true

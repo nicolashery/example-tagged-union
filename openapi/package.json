@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "dependencies": {
     "@openapitools/openapi-generator-cli": "^2.15.3",
-    "@redocly/cli": "^1.27.2"
+    "@redocly/cli": "^1.27.2",
+    "swagger-typescript-api": "^13.0.23"
   },
   "scripts": {
     "preview": "redocly preview-docs spec.yaml",
-    "generate-typescript": "openapi-generator-cli generate -g typescript-fetch -i spec.yaml -o gen/typescript",
-    "generate-go": "openapi-generator-cli generate -g go -i spec.yaml -o gen/go"
+    "openapi-generator-typescript": "openapi-generator-cli generate -g typescript-fetch -i spec.yaml -o gen/openapi-generator/typescript",
+    "openapi-generator-go": "openapi-generator-cli generate -g go -i spec.yaml -o gen/openapi-generator/go",
+    "swagger-typescript-api": "swagger-typescript-api -p ./spec.yaml -o ./gen/swagger-typescript-api --no-client --union-enums"
   }
 }
