@@ -3,195 +3,132 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"strings"
 )
 
-type ObjectType int
+type Item struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type ActionType int
 
 const (
-	ObjectType_User ObjectType = iota
-	ObjectType_Group
+	ActionType_CreateItem ActionType = iota
+	ActionType_UpdateItem
+	ActionType_DeleteItem
+	ActionType_DeleteAllItems
 )
 
-var ObjectTypeStringMap = map[ObjectType]string{
-	ObjectType_User:  "user",
-	ObjectType_Group: "group",
+// note: `exhaustive` linter will catch if we miss an entry here
+var ActionTypeStringMap = map[ActionType]string{
+	ActionType_CreateItem:     "create_item",
+	ActionType_UpdateItem:     "update_item",
+	ActionType_DeleteItem:     "delete_item",
+	ActionType_DeleteAllItems: "delete_all_items",
 }
 
-var ObjectTypeValueMap = map[string]ObjectType{
-	"user":  ObjectType_User,
-	"group": ObjectType_Group,
+// note: `exhaustive` linter can't catch missing entry here
+var ActionTypeValueMap = map[string]ActionType{
+	"create_item":      ActionType_CreateItem,
+	"update_item":      ActionType_UpdateItem,
+	"delete_item":      ActionType_DeleteItem,
+	"delete_all_items": ActionType_DeleteAllItems,
 }
 
-func (t ObjectType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ObjectTypeStringMap[t])
+func (t ActionType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ActionTypeStringMap[t])
 }
 
-func (t *ObjectType) UnmarshalJSON(data []byte) error {
+func (t *ActionType) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
-	if v, ok := ObjectTypeValueMap[s]; ok {
+	if v, ok := ActionTypeValueMap[s]; ok {
 		*t = v
 		return nil
 	}
-	return fmt.Errorf("invalid ObjectType: %s", s)
+	return fmt.Errorf("invalid ActionType: %s", s)
 }
 
-func (t ObjectType) String() string {
-	return ObjectTypeStringMap[t]
-}
-
-type DirectoryObject struct {
-	Type       ObjectType        `json:"type"`
-	ID         string            `json:"id"`
-	Properties map[string]string `json:"properties"`
-}
-
-type DirectoryRelation struct {
-	ObjectType  ObjectType `json:"object_type"`
-	ObjectID    string     `json:"object_id"`
-	Relation    string     `json:"relation"`
-	SubjectType ObjectType `json:"subject_type"`
-	SubjectID   string     `json:"subject_id"`
-}
-
-type OperationType int
-
-const (
-	OperationType_CreateObject OperationType = iota
-	OperationType_UpdateObject
-	OperationType_DeleteObject
-	OperationType_DeleteAllObjects
-	OperationType_CreateRelation
-	OperationType_DeleteRelation
-	OperationType_DeleteAllRelations
-)
-
-var OperationTypeStringMap = map[OperationType]string{
-	OperationType_CreateObject:       "create_object",
-	OperationType_UpdateObject:       "update_object",
-	OperationType_DeleteObject:       "delete_object",
-	OperationType_DeleteAllObjects:   "delete_all_objects",
-	OperationType_CreateRelation:     "create_relation",
-	OperationType_DeleteRelation:     "delete_relation",
-	OperationType_DeleteAllRelations: "delete_all_relations",
-}
-
-var OperationTypeValueMap = map[string]OperationType{
-	"create_object":        OperationType_CreateObject,
-	"update_object":        OperationType_UpdateObject,
-	"delete_object":        OperationType_DeleteObject,
-	"delete_all_objects":   OperationType_DeleteAllObjects,
-	"create_relation":      OperationType_CreateRelation,
-	"delete_relation":      OperationType_DeleteRelation,
-	"delete_all_relations": OperationType_DeleteAllRelations,
-}
-
-func (t OperationType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(OperationTypeStringMap[t])
-}
-
-func (t *OperationType) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-	if v, ok := OperationTypeValueMap[s]; ok {
-		*t = v
-		return nil
-	}
-	return fmt.Errorf("invalid OperationType: %s", s)
-}
-
-func (t OperationType) String() string {
-	return OperationTypeStringMap[t]
+func (t ActionType) String() string {
+	return ActionTypeStringMap[t]
 }
 
 //sumtype:decl
-type Operation interface {
-	isOperation()
-	OperationType() OperationType
+type Action interface {
+	// sealed interface to emulate sum type
+	isAction()
 }
 
-type CreateObjectOperation struct {
-	Object DirectoryObject `json:"object"`
+type CreateItem struct {
+	Item Item `json:"item"`
 }
 
-func (*CreateObjectOperation) isOperation() {}
-func (*CreateObjectOperation) OperationType() OperationType {
-	return OperationType_CreateObject
+func (*CreateItem) isAction() {}
+
+type UpdateItem struct {
+	Item Item `json:"item"`
 }
 
-type UpdateObjectOperation struct {
-	Object DirectoryObject `json:"object"`
+func (*UpdateItem) isAction() {}
+
+type DeleteItem struct {
+	ID string `json:"id"`
 }
 
-func (*UpdateObjectOperation) isOperation() {}
-func (*UpdateObjectOperation) OperationType() OperationType {
-	return OperationType_UpdateObject
+func (*DeleteItem) isAction() {}
+
+type DeleteAllItems struct{}
+
+func (*DeleteAllItems) isAction() {}
+
+func transformAction(action Action) string {
+	var result string
+
+	// note: `go-check-sumtype` linter will catch if we miss a case here
+	switch v := action.(type) {
+	case *CreateItem:
+		result = fmt.Sprintf("create_item %s %s", v.Item.ID, v.Item.Name)
+	case *UpdateItem:
+		result = fmt.Sprintf("update_item %s %s", v.Item.ID, v.Item.Name)
+	case *DeleteItem:
+		result = fmt.Sprintf("delete_item %s", v.ID)
+	case *DeleteAllItems:
+		result = "delete_all_items"
+	}
+
+	return result
 }
 
-type DeleteObjectOperation struct {
-	ObjectType ObjectType `json:"object_type"`
-	ObjectID   string     `json:"object_id"`
+type ActionWrapper struct {
+	Action Action
 }
 
-func (*DeleteObjectOperation) isOperation() {}
-func (*DeleteObjectOperation) OperationType() OperationType {
-	return OperationType_DeleteObject
-}
-
-type DeleteAllObjectsOperation struct{}
-
-func (*DeleteAllObjectsOperation) isOperation() {}
-func (*DeleteAllObjectsOperation) OperationType() OperationType {
-	return OperationType_DeleteAllObjects
-}
-
-type CreateRelationOperation struct {
-	Relation DirectoryRelation `json:"relation"`
-}
-
-func (*CreateRelationOperation) isOperation() {}
-func (*CreateRelationOperation) OperationType() OperationType {
-	return OperationType_CreateRelation
-}
-
-type DeleteRelationOperation struct {
-	Relation DirectoryRelation `json:"relation"`
-}
-
-func (*DeleteRelationOperation) isOperation() {}
-func (*DeleteRelationOperation) OperationType() OperationType {
-	return OperationType_DeleteRelation
-}
-
-type DeleteAllRelationsOperation struct{}
-
-func (*DeleteAllRelationsOperation) isOperation() {}
-func (*DeleteAllRelationsOperation) OperationType() OperationType {
-	return OperationType_DeleteAllRelations
-}
-
-type OperationWrapper struct {
-	Value Operation
-}
-
-func (o *OperationWrapper) MarshalJSONAdjacentlyTagged() ([]byte, error) {
+func (w *ActionWrapper) MarshalJSONAdjacentlyTagged() ([]byte, error) {
 	var tagged struct {
-		Type  OperationType   `json:"type"`
+		Type  ActionType      `json:"type"`
 		Value json.RawMessage `json:"value,omitempty"`
 	}
 
-	tagged.Type = o.Value.OperationType()
-	value, err := json.Marshal(o.Value)
+	// note: `go-check-sumtype` linter will catch if we miss a case here
+	switch w.Action.(type) {
+	case *CreateItem:
+		tagged.Type = ActionType_CreateItem
+	case *UpdateItem:
+		tagged.Type = ActionType_UpdateItem
+	case *DeleteItem:
+		tagged.Type = ActionType_DeleteItem
+	case *DeleteAllItems:
+		tagged.Type = ActionType_DeleteAllItems
+	}
+
+	value, err := json.Marshal(w.Action)
 	if err != nil {
 		return nil, err
 	}
 
+	// don't output empty structs
 	if string(value) != "{}" {
 		tagged.Value = value
 	}
@@ -199,72 +136,86 @@ func (o *OperationWrapper) MarshalJSONAdjacentlyTagged() ([]byte, error) {
 	return json.Marshal(&tagged)
 }
 
-func (o *OperationWrapper) MarshalJSONInternallyTagged1() ([]byte, error) {
+func (w *ActionWrapper) UnmarshalJSONAdjacentlyTagged(data []byte) error {
+	var tagged struct {
+		Type  ActionType      `json:"type"`
+		Value json.RawMessage `json:"value,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &tagged); err != nil {
+		return err
+	}
+
+	var v Action
+	// note: `exhaustive` linter will catch if we miss a case here
+	switch tagged.Type {
+	case ActionType_CreateItem:
+		v = &CreateItem{}
+	case ActionType_UpdateItem:
+		v = &UpdateItem{}
+	case ActionType_DeleteItem:
+		v = &DeleteItem{}
+	case ActionType_DeleteAllItems:
+		v = &DeleteAllItems{}
+	}
+
+	if v == nil {
+		return fmt.Errorf("unknown action type: %s", tagged.Type)
+	}
+
+	if tagged.Value == nil {
+		w.Action = v
+		return nil
+	}
+
+	if err := json.Unmarshal(tagged.Value, v); err != nil {
+		return err
+	}
+
+	w.Action = v
+	return nil
+}
+
+func (w *ActionWrapper) MarshalJSONInternallyTagged1() ([]byte, error) {
 	var data []byte
 	var err error
 
-	switch op := o.Value.(type) {
-	case *CreateObjectOperation:
+	// note: `go-check-sumtype` linter will catch if we miss a case here
+	switch v := w.Action.(type) {
+	case *CreateItem:
 		tagged := struct {
-			Type OperationType `json:"type"`
-			CreateObjectOperation
+			Type ActionType `json:"type"`
+			CreateItem
 		}{
-			Type:                  op.OperationType(),
-			CreateObjectOperation: *op,
+			Type:       ActionType_CreateItem,
+			CreateItem: *v,
 		}
 		data, err = json.Marshal(&tagged)
-	case *UpdateObjectOperation:
+	case *UpdateItem:
 		tagged := struct {
-			Type OperationType `json:"type"`
-			UpdateObjectOperation
+			Type ActionType `json:"type"`
+			UpdateItem
 		}{
-			Type:                  op.OperationType(),
-			UpdateObjectOperation: *op,
+			Type:       ActionType_UpdateItem,
+			UpdateItem: *v,
 		}
 		data, err = json.Marshal(&tagged)
-	case *DeleteObjectOperation:
+	case *DeleteItem:
 		tagged := struct {
-			Type OperationType `json:"type"`
-			DeleteObjectOperation
+			Type ActionType `json:"type"`
+			DeleteItem
 		}{
-			Type:                  op.OperationType(),
-			DeleteObjectOperation: *op,
+			Type:       ActionType_DeleteItem,
+			DeleteItem: *v,
 		}
 		data, err = json.Marshal(&tagged)
-	case *DeleteAllObjectsOperation:
+	case *DeleteAllItems:
 		tagged := struct {
-			Type OperationType `json:"type"`
-			DeleteAllObjectsOperation
+			Type ActionType `json:"type"`
+			DeleteAllItems
 		}{
-			Type:                      op.OperationType(),
-			DeleteAllObjectsOperation: *op,
-		}
-		data, err = json.Marshal(&tagged)
-	case *CreateRelationOperation:
-		tagged := struct {
-			Type OperationType `json:"type"`
-			CreateRelationOperation
-		}{
-			Type:                    op.OperationType(),
-			CreateRelationOperation: *op,
-		}
-		data, err = json.Marshal(&tagged)
-	case *DeleteRelationOperation:
-		tagged := struct {
-			Type OperationType `json:"type"`
-			DeleteRelationOperation
-		}{
-			Type:                    op.OperationType(),
-			DeleteRelationOperation: *op,
-		}
-		data, err = json.Marshal(&tagged)
-	case *DeleteAllRelationsOperation:
-		tagged := struct {
-			Type OperationType `json:"type"`
-			DeleteAllRelationsOperation
-		}{
-			Type:                        op.OperationType(),
-			DeleteAllRelationsOperation: *op,
+			Type:           ActionType_DeleteAllItems,
+			DeleteAllItems: *v,
 		}
 		data, err = json.Marshal(&tagged)
 	}
@@ -272,10 +223,10 @@ func (o *OperationWrapper) MarshalJSONInternallyTagged1() ([]byte, error) {
 	return data, err
 }
 
-func (o *OperationWrapper) MarshalJSONInternallyTagged2() ([]byte, error) {
-	op := o.Value
+func (w *ActionWrapper) MarshalJSONInternallyTagged2() ([]byte, error) {
+	v := w.Action
 
-	data, err := json.Marshal(&op)
+	data, err := json.Marshal(&v)
 	if err != nil {
 		return nil, err
 	}
@@ -285,303 +236,142 @@ func (o *OperationWrapper) MarshalJSONInternallyTagged2() ([]byte, error) {
 		return nil, err
 	}
 
-	tagged["type"] = op.OperationType()
+	// note: `go-check-sumtype` linter will catch if we miss a case here
+	switch w.Action.(type) {
+	case *CreateItem:
+		tagged["type"] = ActionType_CreateItem
+	case *UpdateItem:
+		tagged["type"] = ActionType_UpdateItem
+	case *DeleteItem:
+		tagged["type"] = ActionType_DeleteItem
+	case *DeleteAllItems:
+		tagged["type"] = ActionType_DeleteAllItems
+	}
 
 	return json.Marshal(&tagged)
 }
 
-func (o *OperationWrapper) MarshalJSON() ([]byte, error) {
-	return o.MarshalJSONInternallyTagged2()
-}
-
-func (o *OperationWrapper) UnmarshalJSONAdjacentlyTagged(data []byte) error {
-	var tagged struct {
-		Type  OperationType   `json:"type"`
-		Value json.RawMessage `json:"value,omitempty"`
-	}
-
-	if err := json.Unmarshal(data, &tagged); err != nil {
-		return err
-	}
-
-	var op Operation
-	switch tagged.Type {
-	case OperationType_CreateObject:
-		op = &CreateObjectOperation{}
-	case OperationType_UpdateObject:
-		op = &UpdateObjectOperation{}
-	case OperationType_DeleteObject:
-		op = &DeleteObjectOperation{}
-	case OperationType_DeleteAllObjects:
-		op = &DeleteAllObjectsOperation{}
-	case OperationType_CreateRelation:
-		op = &CreateRelationOperation{}
-	case OperationType_DeleteRelation:
-		op = &DeleteRelationOperation{}
-	case OperationType_DeleteAllRelations:
-		op = &DeleteAllRelationsOperation{}
-	}
-
-	if op == nil {
-		return fmt.Errorf("unknown operation type: %s", tagged.Type)
-	}
-
-	if tagged.Value == nil {
-		o.Value = op
-		return nil
-	}
-
-	if err := json.Unmarshal(tagged.Value, op); err != nil {
-		return err
-	}
-
-	o.Value = op
-	return nil
-}
-
-func (o *OperationWrapper) UnmarshalJSONInternallyTagged(data []byte) error {
+func (w *ActionWrapper) UnmarshalJSONInternallyTagged(data []byte) error {
 	var tag struct {
-		Type OperationType `json:"type"`
+		Type ActionType `json:"type"`
 	}
 
 	if err := json.Unmarshal(data, &tag); err != nil {
 		return err
 	}
 
-	var op Operation
+	var v Action
+	// note: `exhaustive` linter will catch if we miss a case here
 	switch tag.Type {
-	case OperationType_CreateObject:
-		op = &CreateObjectOperation{}
-	case OperationType_UpdateObject:
-		op = &UpdateObjectOperation{}
-	case OperationType_DeleteObject:
-		op = &DeleteObjectOperation{}
-	case OperationType_DeleteAllObjects:
-		op = &DeleteAllObjectsOperation{}
-	case OperationType_CreateRelation:
-		op = &CreateRelationOperation{}
-	case OperationType_DeleteRelation:
-		op = &DeleteRelationOperation{}
-	case OperationType_DeleteAllRelations:
-		op = &DeleteAllRelationsOperation{}
+	case ActionType_CreateItem:
+		v = &CreateItem{}
+	case ActionType_UpdateItem:
+		v = &UpdateItem{}
+	case ActionType_DeleteItem:
+		v = &DeleteItem{}
+	case ActionType_DeleteAllItems:
+		v = &DeleteAllItems{}
 	}
 
-	if op == nil {
-		return fmt.Errorf("unknown operation type: %s", tag.Type)
-	}
-
-	if err := json.Unmarshal(data, op); err != nil {
+	if err := json.Unmarshal(data, v); err != nil {
 		return err
 	}
 
-	o.Value = op
+	w.Action = v
 	return nil
 }
 
-func (o *OperationWrapper) UnmarshalJSON(data []byte) error {
+func (o *ActionWrapper) MarshalJSON() ([]byte, error) {
+	return o.MarshalJSONInternallyTagged2()
+}
+
+func (o *ActionWrapper) UnmarshalJSON(data []byte) error {
 	return o.UnmarshalJSONInternallyTagged(data)
 }
 
-type IncomingRequest struct {
-	Operations []OperationWrapper `json:"operations"`
+type ActionListWrapper struct {
+	actions []ActionWrapper
 }
 
-func NewIncomingRequest(operations []Operation) IncomingRequest {
-	var operationWrappers []OperationWrapper
-	for _, op := range operations {
-		operationWrappers = append(operationWrappers, OperationWrapper{
-			Value: op,
-		})
+func (w *ActionListWrapper) MarshalJSON() ([]byte, error) {
+	return json.Marshal(w.actions)
+}
+
+func (w *ActionListWrapper) UnmarshalJSON(data []byte) error {
+	var wrapped []ActionWrapper
+	if err := json.Unmarshal(data, &wrapped); err != nil {
+		return err
 	}
-	return IncomingRequest{
-		Operations: operationWrappers,
+	w.actions = wrapped
+	return nil
+}
+
+func (w *ActionListWrapper) FromActions(actions []Action) {
+	var wrapped []ActionWrapper
+	for _, action := range actions {
+		wrapped = append(wrapped, ActionWrapper{Action: action})
 	}
+	w.actions = wrapped
 }
 
-func (r IncomingRequest) GetOperations() []Operation {
-	var operations []Operation
-	for _, op := range r.Operations {
-		operations = append(operations, op.Value)
+func (w *ActionListWrapper) AsActions() []Action {
+	var actions []Action
+	for _, wrapped := range w.actions {
+		actions = append(actions, wrapped.Action)
 	}
-	return operations
+	return actions
 }
 
-type OpCode int
-
-const (
-	OpCode_Set OpCode = iota
-	OpCode_Delete
-)
-
-var OpCodeStringMap = map[OpCode]string{
-	OpCode_Set:    "set",
-	OpCode_Delete: "delete",
+var exampleActions = []Action{
+	&CreateItem{Item: Item{ID: "1", Name: "item1"}},
+	&UpdateItem{Item: Item{ID: "1", Name: "item1 updated"}},
+	&DeleteItem{ID: "1"},
+	&DeleteAllItems{},
 }
 
-func (o OpCode) String() string {
-	return OpCodeStringMap[o]
-}
+func printJSONRoundtrip() {
+	w := &ActionListWrapper{}
+	w.FromActions(exampleActions)
 
-type DirectoryKind int
-
-const (
-	DirectoryKind_Object DirectoryKind = iota
-	DirectoryKind_Relation
-)
-
-var DirectoryKindStringMap = map[DirectoryKind]string{
-	DirectoryKind_Object:   "object",
-	DirectoryKind_Relation: "relation",
-}
-
-func (k DirectoryKind) String() string {
-	return DirectoryKindStringMap[k]
-}
-
-func (o *DirectoryObject) ToOutgoingMessage(opCode OpCode) string {
-	var result []string
-	result = append(result, "op_code: "+opCode.String())
-	result = append(result, "kind: object")
-	result = append(result, "type: "+o.Type.String())
-	result = append(result, "id: "+o.ID)
-
-	for key, value := range o.Properties {
-		result = append(result, key+": "+value)
-	}
-
-	return strings.Join(result, "\n")
-}
-
-func (r *DirectoryRelation) ToOutgoingMessage(opCode OpCode) string {
-	var result []string
-	result = append(result, "op_code: "+opCode.String())
-	result = append(result, "kind: relation")
-	result = append(result, "object_type: "+r.ObjectType.String())
-	result = append(result, "object_id: "+r.ObjectID)
-	result = append(result, "relation: "+r.Relation)
-	result = append(result, "subject_type: "+r.SubjectType.String())
-	result = append(result, "subject_id: "+r.SubjectID)
-
-	return strings.Join(result, "\n")
-}
-
-func DeleteAllOutgoingMessage(kind DirectoryKind) string {
-	var result []string
-	result = append(result, "op_code: "+OpCode_Delete.String())
-	result = append(result, "kind: "+kind.String())
-	result = append(result, "all: true")
-
-	return strings.Join(result, "\n")
-}
-
-func transform(operation Operation) string {
-	var result string
-	switch op := operation.(type) {
-	case *CreateObjectOperation:
-		result = op.Object.ToOutgoingMessage(OpCode_Set)
-	case *UpdateObjectOperation:
-		result = op.Object.ToOutgoingMessage(OpCode_Set)
-	case *DeleteObjectOperation:
-		obj := DirectoryObject{
-			Type:       op.ObjectType,
-			ID:         op.ObjectID,
-			Properties: map[string]string{},
-		}
-		result = obj.ToOutgoingMessage(OpCode_Delete)
-	case *DeleteAllObjectsOperation:
-		result = DeleteAllOutgoingMessage(DirectoryKind_Object)
-	case *CreateRelationOperation:
-		result = op.Relation.ToOutgoingMessage(OpCode_Set)
-	case *DeleteRelationOperation:
-		result = op.Relation.ToOutgoingMessage(OpCode_Delete)
-	case *DeleteAllRelationsOperation:
-		result = DeleteAllOutgoingMessage(DirectoryKind_Relation)
-	}
-
-	return result
-}
-
-func transformMany(operations []Operation) string {
-	var result []string
-	for _, op := range operations {
-		result = append(result, transform(op))
-	}
-	return strings.Join(result, "\n\n")
-}
-
-var exampleOperations = []Operation{
-	&CreateObjectOperation{
-		Object: DirectoryObject{
-			Type: ObjectType_User,
-			ID:   "b478779c-5e5e-4cd7-9bf3-1405326be526",
-			Properties: map[string]string{
-				"email": "alice@example.com",
-			},
-		},
-	},
-	&UpdateObjectOperation{
-		Object: DirectoryObject{
-			Type: ObjectType_Group,
-			ID:   "2ca6785b-a2ef-4a62-a5f6-5e2314ae59ca",
-			Properties: map[string]string{
-				"name": "admins",
-			},
-		},
-	},
-	&DeleteObjectOperation{
-		ObjectType: ObjectType_Group,
-		ObjectID:   "c9b58dd9-b4f6-4325-ba52-3d8d70857363",
-	},
-	&DeleteAllObjectsOperation{},
-	&CreateRelationOperation{
-		Relation: DirectoryRelation{
-			ObjectType:  ObjectType_Group,
-			ObjectID:    "7910720c-9789-4dd3-83a4-4c65eebd82b3",
-			Relation:    "member",
-			SubjectType: ObjectType_User,
-			SubjectID:   "f32756fd-6a92-4034-8b86-c92cc9d9719f",
-		},
-	},
-	&DeleteRelationOperation{
-		Relation: DirectoryRelation{
-			ObjectType:  ObjectType_Group,
-			ObjectID:    "c3e65031-7455-45c8-acbd-59ec59d3e769",
-			Relation:    "member",
-			SubjectType: ObjectType_User,
-			SubjectID:   "f50fd4aa3-d632-46d6-92da-21bcc1391287",
-		},
-	},
-	&DeleteAllRelationsOperation{},
-}
-
-func test() {
-	request := NewIncomingRequest(exampleOperations)
-
-	data, err := json.MarshalIndent(request, "", "  ")
+	data, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
-		fmt.Println("Error marshalling request:", err)
-		return
+		panic(err)
 	}
+
+	fmt.Println("## JSON")
+	fmt.Println()
+	fmt.Println("```json")
 	fmt.Println(string(data))
+	fmt.Println("```")
+	fmt.Println()
+
+	w2 := &ActionListWrapper{}
+	if err := json.Unmarshal(data, w2); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("## Debug")
+	fmt.Println()
+	fmt.Println("```go")
+	for _, action := range w2.AsActions() {
+		fmt.Printf("%#v\n", action)
+	}
+	fmt.Println("```")
+	fmt.Println()
 }
 
-func run() {
-	bytes, err := os.ReadFile("in.json")
-	if err != nil {
-		fmt.Println("Error reading file:", err)
-		return
+func printTransformedActions() {
+	fmt.Println("## Transformed")
+	fmt.Println()
+	fmt.Println("```")
+	for _, action := range exampleActions {
+		fmt.Println(transformAction(action))
 	}
-
-	var request IncomingRequest
-	if err := json.Unmarshal(bytes, &request); err != nil {
-		fmt.Println("Error unmarshalling request:", err)
-		return
-	}
-
-	result := transformMany(request.GetOperations())
-	fmt.Println(result)
+	fmt.Println("```")
+	fmt.Println()
 }
 
 func main() {
-	run()
+	printJSONRoundtrip()
+	printTransformedActions()
 }

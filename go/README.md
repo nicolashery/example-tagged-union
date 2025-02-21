@@ -5,5 +5,5 @@ Install [Go](https://go.dev/dl/).
 Run the example:
 
 ```
-go run .
+go run . > out.md
 ```
