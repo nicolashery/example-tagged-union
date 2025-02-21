@@ -56,7 +56,7 @@ func (t ActionType) String() string {
 }
 
 //sumtype:decl
-type Action interface {
+type IsAction interface {
 	// sealed interface to emulate sum type
 	isAction()
 }
@@ -83,36 +83,26 @@ type DeleteAllItems struct{}
 
 func (*DeleteAllItems) isAction() {}
 
-func transformAction(action Action) string {
-	var result string
-
-	// note: `go-check-sumtype` linter will catch if we miss a case here
-	switch v := action.(type) {
-	case *CreateItem:
-		result = fmt.Sprintf("create_item %s %s", v.Item.ID, v.Item.Name)
-	case *UpdateItem:
-		result = fmt.Sprintf("update_item %s %s", v.Item.ID, v.Item.Name)
-	case *DeleteItem:
-		result = fmt.Sprintf("delete_item %s", v.ID)
-	case *DeleteAllItems:
-		result = "delete_all_items"
-	}
-
-	return result
+type Action struct {
+	value IsAction
 }
 
-type ActionWrapper struct {
-	Action Action
+func NewAction(value IsAction) Action {
+	return Action{value: value}
 }
 
-func (w *ActionWrapper) MarshalJSONAdjacentlyTagged() ([]byte, error) {
+func (a *Action) Value() IsAction {
+	return a.value
+}
+
+func (a *Action) MarshalJSONAdjacentlyTagged() ([]byte, error) {
 	var tagged struct {
 		Type  ActionType      `json:"type"`
 		Value json.RawMessage `json:"value,omitempty"`
 	}
 
 	// note: `go-check-sumtype` linter will catch if we miss a case here
-	switch w.Action.(type) {
+	switch a.value.(type) {
 	case *CreateItem:
 		tagged.Type = ActionType_CreateItem
 	case *UpdateItem:
@@ -123,7 +113,7 @@ func (w *ActionWrapper) MarshalJSONAdjacentlyTagged() ([]byte, error) {
 		tagged.Type = ActionType_DeleteAllItems
 	}
 
-	value, err := json.Marshal(w.Action)
+	value, err := json.Marshal(a.value)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +126,7 @@ func (w *ActionWrapper) MarshalJSONAdjacentlyTagged() ([]byte, error) {
 	return json.Marshal(&tagged)
 }
 
-func (w *ActionWrapper) UnmarshalJSONAdjacentlyTagged(data []byte) error {
+func (a *Action) UnmarshalJSONAdjacentlyTagged(data []byte) error {
 	var tagged struct {
 		Type  ActionType      `json:"type"`
 		Value json.RawMessage `json:"value,omitempty"`
@@ -146,7 +136,7 @@ func (w *ActionWrapper) UnmarshalJSONAdjacentlyTagged(data []byte) error {
 		return err
 	}
 
-	var v Action
+	var v IsAction
 	// note: `exhaustive` linter will catch if we miss a case here
 	switch tagged.Type {
 	case ActionType_CreateItem:
@@ -164,7 +154,7 @@ func (w *ActionWrapper) UnmarshalJSONAdjacentlyTagged(data []byte) error {
 	}
 
 	if tagged.Value == nil {
-		w.Action = v
+		a.value = v
 		return nil
 	}
 
@@ -172,16 +162,16 @@ func (w *ActionWrapper) UnmarshalJSONAdjacentlyTagged(data []byte) error {
 		return err
 	}
 
-	w.Action = v
+	a.value = v
 	return nil
 }
 
-func (w *ActionWrapper) MarshalJSONInternallyTagged1() ([]byte, error) {
+func (a *Action) MarshalJSONInternallyTagged1() ([]byte, error) {
 	var data []byte
 	var err error
 
 	// note: `go-check-sumtype` linter will catch if we miss a case here
-	switch v := w.Action.(type) {
+	switch v := a.value.(type) {
 	case *CreateItem:
 		tagged := struct {
 			Type ActionType `json:"type"`
@@ -223,8 +213,8 @@ func (w *ActionWrapper) MarshalJSONInternallyTagged1() ([]byte, error) {
 	return data, err
 }
 
-func (w *ActionWrapper) MarshalJSONInternallyTagged2() ([]byte, error) {
-	v := w.Action
+func (a *Action) MarshalJSONInternallyTagged2() ([]byte, error) {
+	v := a.value
 
 	data, err := json.Marshal(&v)
 	if err != nil {
@@ -237,7 +227,7 @@ func (w *ActionWrapper) MarshalJSONInternallyTagged2() ([]byte, error) {
 	}
 
 	// note: `go-check-sumtype` linter will catch if we miss a case here
-	switch w.Action.(type) {
+	switch a.value.(type) {
 	case *CreateItem:
 		tagged["type"] = ActionType_CreateItem
 	case *UpdateItem:
@@ -251,7 +241,7 @@ func (w *ActionWrapper) MarshalJSONInternallyTagged2() ([]byte, error) {
 	return json.Marshal(&tagged)
 }
 
-func (w *ActionWrapper) UnmarshalJSONInternallyTagged(data []byte) error {
+func (a *Action) UnmarshalJSONInternallyTagged(data []byte) error {
 	var tag struct {
 		Type ActionType `json:"type"`
 	}
@@ -260,7 +250,7 @@ func (w *ActionWrapper) UnmarshalJSONInternallyTagged(data []byte) error {
 		return err
 	}
 
-	var v Action
+	var v IsAction
 	// note: `exhaustive` linter will catch if we miss a case here
 	switch tag.Type {
 	case ActionType_CreateItem:
@@ -277,63 +267,47 @@ func (w *ActionWrapper) UnmarshalJSONInternallyTagged(data []byte) error {
 		return err
 	}
 
-	w.Action = v
+	a.value = v
 	return nil
 }
 
-func (o *ActionWrapper) MarshalJSON() ([]byte, error) {
-	return o.MarshalJSONInternallyTagged2()
+func (a *Action) MarshalJSON() ([]byte, error) {
+	return a.MarshalJSONInternallyTagged2()
 }
 
-func (o *ActionWrapper) UnmarshalJSON(data []byte) error {
-	return o.UnmarshalJSONInternallyTagged(data)
+func (a *Action) UnmarshalJSON(data []byte) error {
+	return a.UnmarshalJSONInternallyTagged(data)
 }
 
-type ActionListWrapper struct {
-	actions []ActionWrapper
-}
+func transformAction(action *Action) string {
+	var result string
 
-func (w *ActionListWrapper) MarshalJSON() ([]byte, error) {
-	return json.Marshal(w.actions)
-}
-
-func (w *ActionListWrapper) UnmarshalJSON(data []byte) error {
-	var wrapped []ActionWrapper
-	if err := json.Unmarshal(data, &wrapped); err != nil {
-		return err
+	// note: `go-check-sumtype` linter will catch if we miss a case here
+	switch v := action.Value().(type) {
+	case *CreateItem:
+		result = fmt.Sprintf("create_item %s %s", v.Item.ID, v.Item.Name)
+	case *UpdateItem:
+		result = fmt.Sprintf("update_item %s %s", v.Item.ID, v.Item.Name)
+	case *DeleteItem:
+		result = fmt.Sprintf("delete_item %s", v.ID)
+	case *DeleteAllItems:
+		result = "delete_all_items"
 	}
-	w.actions = wrapped
-	return nil
-}
 
-func (w *ActionListWrapper) FromActions(actions []Action) {
-	var wrapped []ActionWrapper
-	for _, action := range actions {
-		wrapped = append(wrapped, ActionWrapper{Action: action})
-	}
-	w.actions = wrapped
-}
-
-func (w *ActionListWrapper) AsActions() []Action {
-	var actions []Action
-	for _, wrapped := range w.actions {
-		actions = append(actions, wrapped.Action)
-	}
-	return actions
+	return result
 }
 
 var exampleActions = []Action{
-	&CreateItem{Item: Item{ID: "1", Name: "item1"}},
-	&UpdateItem{Item: Item{ID: "1", Name: "item1 updated"}},
-	&DeleteItem{ID: "1"},
-	&DeleteAllItems{},
+	NewAction(&CreateItem{Item: Item{ID: "1", Name: "item1"}}),
+	NewAction(&UpdateItem{Item: Item{ID: "1", Name: "item1 updated"}}),
+	NewAction(&DeleteItem{ID: "1"}),
+	NewAction(&DeleteAllItems{}),
 }
 
 func printJSONRoundtrip() {
-	w := &ActionListWrapper{}
-	w.FromActions(exampleActions)
+	actions := exampleActions
 
-	data, err := json.MarshalIndent(w, "", "  ")
+	data, err := json.MarshalIndent(actions, "", "  ")
 	if err != nil {
 		panic(err)
 	}
@@ -345,16 +319,16 @@ func printJSONRoundtrip() {
 	fmt.Println("```")
 	fmt.Println()
 
-	w2 := &ActionListWrapper{}
-	if err := json.Unmarshal(data, w2); err != nil {
+	actions2 := []Action{}
+	if err := json.Unmarshal(data, &actions2); err != nil {
 		panic(err)
 	}
 
 	fmt.Println("## Debug")
 	fmt.Println()
 	fmt.Println("```go")
-	for _, action := range w2.AsActions() {
-		fmt.Printf("%#v\n", action)
+	for _, action := range actions2 {
+		fmt.Printf("%#v\n", action.Value())
 	}
 	fmt.Println("```")
 	fmt.Println()
@@ -365,7 +339,7 @@ func printTransformedActions() {
 	fmt.Println()
 	fmt.Println("```")
 	for _, action := range exampleActions {
-		fmt.Println(transformAction(action))
+		fmt.Println(transformAction(&action))
 	}
 	fmt.Println("```")
 	fmt.Println()
