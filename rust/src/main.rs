@@ -5,85 +5,91 @@ use serde_json;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
-enum ItemType {
+enum ObjectType {
     User,
     Group,
 }
 
-impl fmt::Display for ItemType {
+impl fmt::Display for ObjectType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let output = match self {
-            ItemType::User => "user",
-            ItemType::Group => "group",
+            ObjectType::User => "user",
+            ObjectType::Group => "group",
         };
         write!(f, "{}", output)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Item {
+struct Object {
     #[serde(rename = "type")]
-    item_type: ItemType,
+    object_type: ObjectType,
     id: String,
     name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct CreateItem {
-    item: Item,
+struct CreateObject {
+    object: Object,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct UpdateItem {
-    item: Item,
+struct UpdateObject {
+    object: Object,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct DeleteItem {
+struct DeleteObject {
     id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum Action {
-    CreateItem(CreateItem),
-    UpdateItem(UpdateItem),
-    DeleteItem(DeleteItem),
-    DeleteAllItems,
+    CreateObject(CreateObject),
+    UpdateObject(UpdateObject),
+    DeleteObject(DeleteObject),
+    DeleteAllObjects,
 }
 
 fn transform_action(action: Action) -> String {
     return match action {
-        Action::CreateItem(CreateItem { item }) => {
-            format!("create_item {} {} {}", item.item_type, item.id, item.name)
+        Action::CreateObject(CreateObject { object }) => {
+            format!(
+                "create_object {} {} {}",
+                object.object_type, object.id, object.name
+            )
         }
-        Action::UpdateItem(UpdateItem { item }) => {
-            format!("update_item {} {} {}", item.item_type, item.id, item.name)
+        Action::UpdateObject(UpdateObject { object }) => {
+            format!(
+                "update_object {} {} {}",
+                object.object_type, object.id, object.name
+            )
         }
-        Action::DeleteItem(DeleteItem { id }) => {
-            format!("delete_item {}", id)
+        Action::DeleteObject(DeleteObject { id }) => {
+            format!("delete_object {}", id)
         }
-        Action::DeleteAllItems => "delete_all_items".to_string(),
+        Action::DeleteAllObjects => "delete_all_objects".to_string(),
     };
 }
 
 fn example_actions() -> Vec<Action> {
     vec![
-        Action::CreateItem(CreateItem {
-            item: Item {
-                item_type: ItemType::User,
+        Action::CreateObject(CreateObject {
+            object: Object {
+                object_type: ObjectType::User,
                 id: "1".to_string(),
                 name: "user1".to_string(),
             },
         }),
-        Action::UpdateItem(UpdateItem {
-            item: Item {
-                item_type: ItemType::User,
+        Action::UpdateObject(UpdateObject {
+            object: Object {
+                object_type: ObjectType::User,
                 id: "1".to_string(),
                 name: "user1 updated".to_string(),
             },
         }),
-        Action::DeleteAllItems,
+        Action::DeleteAllObjects,
     ]
 }
 
