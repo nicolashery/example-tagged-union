@@ -42,6 +42,17 @@ func (t ObjectType) String() string {
 	return ObjectTypeStringMap[t]
 }
 
+func (t ObjectType) GoString() string {
+	var result string
+	switch t {
+	case ObjectType_User:
+		result = "ObjectType_User"
+	case ObjectType_Group:
+		return "ObjectType_Group"
+	}
+	return result
+}
+
 type Item struct {
 	Type ObjectType `json:"type"`
 	ID   string     `json:"id"`
