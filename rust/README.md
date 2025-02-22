@@ -5,5 +5,5 @@ Install Rust using [rustup](https://www.rust-lang.org/tools/install).
 Run the example:
 
 ```
-cargo run
+cargo run > out.md
 ```
