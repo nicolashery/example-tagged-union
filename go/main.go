@@ -297,21 +297,23 @@ func transformAction(action *Action) string {
 	return result
 }
 
-var exampleActions = []Action{
-	NewAction(&CreateItem{Item: Item{ID: "1", Name: "item1"}}),
-	NewAction(&UpdateItem{Item: Item{ID: "1", Name: "item1 updated"}}),
-	NewAction(&DeleteItem{ID: "1"}),
-	NewAction(&DeleteAllItems{}),
+func exampleActions() []Action {
+	return []Action{
+		NewAction(&CreateItem{Item: Item{ID: "1", Name: "item1"}}),
+		NewAction(&UpdateItem{Item: Item{ID: "1", Name: "item1 updated"}}),
+		NewAction(&DeleteItem{ID: "1"}),
+		NewAction(&DeleteAllItems{}),
+	}
 }
 
-func printJSONRoundtrip() {
-	actions := exampleActions
+func main() {
+	actions := exampleActions()
 
+	// JSON encode
 	data, err := json.MarshalIndent(actions, "", "  ")
 	if err != nil {
 		panic(err)
 	}
-
 	fmt.Println("## JSON")
 	fmt.Println()
 	fmt.Println("```json")
@@ -319,11 +321,11 @@ func printJSONRoundtrip() {
 	fmt.Println("```")
 	fmt.Println()
 
+	// JSON decode
 	actions2 := []Action{}
 	if err := json.Unmarshal(data, &actions2); err != nil {
 		panic(err)
 	}
-
 	fmt.Println("## Debug")
 	fmt.Println()
 	fmt.Println("```go")
@@ -332,20 +334,14 @@ func printJSONRoundtrip() {
 	}
 	fmt.Println("```")
 	fmt.Println()
-}
 
-func printTransformedActions() {
+	// Transform
 	fmt.Println("## Transformed")
 	fmt.Println()
 	fmt.Println("```")
-	for _, action := range exampleActions {
+	for _, action := range actions {
 		fmt.Println(transformAction(&action))
 	}
 	fmt.Println("```")
 	fmt.Println()
-}
-
-func main() {
-	printJSONRoundtrip()
-	printTransformedActions()
 }
