@@ -5,34 +5,72 @@ import (
 	"fmt"
 )
 
+type ObjectType int
+
+const (
+	ObjectType_User ObjectType = iota
+	ObjectType_Group
+)
+
+var ObjectTypeStringMap = map[ObjectType]string{
+	ObjectType_User:  "user",
+	ObjectType_Group: "group",
+}
+
+var ObjectTypeValueMap = map[string]ObjectType{
+	"user":  ObjectType_User,
+	"group": ObjectType_Group,
+}
+
+func (t ObjectType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ObjectTypeStringMap[t])
+}
+
+func (t *ObjectType) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	if v, ok := ObjectTypeValueMap[s]; ok {
+		*t = v
+		return nil
+	}
+	return fmt.Errorf("invalid ObjectType: %s", s)
+}
+
+func (t ObjectType) String() string {
+	return ObjectTypeStringMap[t]
+}
+
 type Item struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	Type ObjectType `json:"type"`
+	ID   string     `json:"id"`
+	Name string     `json:"name"`
 }
 
 type ActionType int
 
 const (
-	ActionType_CreateItem ActionType = iota
-	ActionType_UpdateItem
-	ActionType_DeleteItem
-	ActionType_DeleteAllItems
+	ActionType_CreateObject ActionType = iota
+	ActionType_UpdateObject
+	ActionType_DeleteObject
+	ActionType_DeleteAllObjects
 )
 
 // note: `exhaustive` linter will catch if we miss an entry here
 var ActionTypeStringMap = map[ActionType]string{
-	ActionType_CreateItem:     "create_item",
-	ActionType_UpdateItem:     "update_item",
-	ActionType_DeleteItem:     "delete_item",
-	ActionType_DeleteAllItems: "delete_all_items",
+	ActionType_CreateObject:     "create_object",
+	ActionType_UpdateObject:     "update_object",
+	ActionType_DeleteObject:     "delete_object",
+	ActionType_DeleteAllObjects: "delete_all_objects",
 }
 
 // note: `exhaustive` linter can't catch missing entry here
 var ActionTypeValueMap = map[string]ActionType{
-	"create_item":      ActionType_CreateItem,
-	"update_item":      ActionType_UpdateItem,
-	"delete_item":      ActionType_DeleteItem,
-	"delete_all_items": ActionType_DeleteAllItems,
+	"create_object":      ActionType_CreateObject,
+	"update_object":      ActionType_UpdateObject,
+	"delete_object":      ActionType_DeleteObject,
+	"delete_all_objects": ActionType_DeleteAllObjects,
 }
 
 func (t ActionType) MarshalJSON() ([]byte, error) {
@@ -61,27 +99,27 @@ type IsAction interface {
 	isAction()
 }
 
-type CreateItem struct {
-	Item Item `json:"item"`
+type CreateObject struct {
+	Object Item `json:"object"`
 }
 
-func (*CreateItem) isAction() {}
+func (*CreateObject) isAction() {}
 
-type UpdateItem struct {
-	Item Item `json:"item"`
+type UpdateObject struct {
+	Object Item `json:"object"`
 }
 
-func (*UpdateItem) isAction() {}
+func (*UpdateObject) isAction() {}
 
-type DeleteItem struct {
+type DeleteObject struct {
 	ID string `json:"id"`
 }
 
-func (*DeleteItem) isAction() {}
+func (*DeleteObject) isAction() {}
 
-type DeleteAllItems struct{}
+type DeleteAllObjects struct{}
 
-func (*DeleteAllItems) isAction() {}
+func (*DeleteAllObjects) isAction() {}
 
 type Action struct {
 	value IsAction
@@ -103,14 +141,14 @@ func (a *Action) MarshalJSONAdjacentlyTagged() ([]byte, error) {
 
 	// note: `go-check-sumtype` linter will catch if we miss a case here
 	switch a.value.(type) {
-	case *CreateItem:
-		tagged.Type = ActionType_CreateItem
-	case *UpdateItem:
-		tagged.Type = ActionType_UpdateItem
-	case *DeleteItem:
-		tagged.Type = ActionType_DeleteItem
-	case *DeleteAllItems:
-		tagged.Type = ActionType_DeleteAllItems
+	case *CreateObject:
+		tagged.Type = ActionType_CreateObject
+	case *UpdateObject:
+		tagged.Type = ActionType_UpdateObject
+	case *DeleteObject:
+		tagged.Type = ActionType_DeleteObject
+	case *DeleteAllObjects:
+		tagged.Type = ActionType_DeleteAllObjects
 	}
 
 	value, err := json.Marshal(a.value)
@@ -139,14 +177,14 @@ func (a *Action) UnmarshalJSONAdjacentlyTagged(data []byte) error {
 	var v IsAction
 	// note: `exhaustive` linter will catch if we miss a case here
 	switch tagged.Type {
-	case ActionType_CreateItem:
-		v = &CreateItem{}
-	case ActionType_UpdateItem:
-		v = &UpdateItem{}
-	case ActionType_DeleteItem:
-		v = &DeleteItem{}
-	case ActionType_DeleteAllItems:
-		v = &DeleteAllItems{}
+	case ActionType_CreateObject:
+		v = new(CreateObject)
+	case ActionType_UpdateObject:
+		v = new(UpdateObject)
+	case ActionType_DeleteObject:
+		v = new(DeleteObject)
+	case ActionType_DeleteAllObjects:
+		v = new(DeleteAllObjects)
 	}
 
 	if v == nil {
@@ -172,40 +210,40 @@ func (a *Action) MarshalJSONInternallyTagged1() ([]byte, error) {
 
 	// note: `go-check-sumtype` linter will catch if we miss a case here
 	switch v := a.value.(type) {
-	case *CreateItem:
+	case *CreateObject:
 		tagged := struct {
 			Type ActionType `json:"type"`
-			CreateItem
+			CreateObject
 		}{
-			Type:       ActionType_CreateItem,
-			CreateItem: *v,
+			Type:         ActionType_CreateObject,
+			CreateObject: *v,
 		}
 		data, err = json.Marshal(&tagged)
-	case *UpdateItem:
+	case *UpdateObject:
 		tagged := struct {
 			Type ActionType `json:"type"`
-			UpdateItem
+			UpdateObject
 		}{
-			Type:       ActionType_UpdateItem,
-			UpdateItem: *v,
+			Type:         ActionType_UpdateObject,
+			UpdateObject: *v,
 		}
 		data, err = json.Marshal(&tagged)
-	case *DeleteItem:
+	case *DeleteObject:
 		tagged := struct {
 			Type ActionType `json:"type"`
-			DeleteItem
+			DeleteObject
 		}{
-			Type:       ActionType_DeleteItem,
-			DeleteItem: *v,
+			Type:         ActionType_DeleteObject,
+			DeleteObject: *v,
 		}
 		data, err = json.Marshal(&tagged)
-	case *DeleteAllItems:
+	case *DeleteAllObjects:
 		tagged := struct {
 			Type ActionType `json:"type"`
-			DeleteAllItems
+			DeleteAllObjects
 		}{
-			Type:           ActionType_DeleteAllItems,
-			DeleteAllItems: *v,
+			Type:             ActionType_DeleteAllObjects,
+			DeleteAllObjects: *v,
 		}
 		data, err = json.Marshal(&tagged)
 	}
@@ -228,14 +266,14 @@ func (a *Action) MarshalJSONInternallyTagged2() ([]byte, error) {
 
 	// note: `go-check-sumtype` linter will catch if we miss a case here
 	switch a.value.(type) {
-	case *CreateItem:
-		tagged["type"] = ActionType_CreateItem
-	case *UpdateItem:
-		tagged["type"] = ActionType_UpdateItem
-	case *DeleteItem:
-		tagged["type"] = ActionType_DeleteItem
-	case *DeleteAllItems:
-		tagged["type"] = ActionType_DeleteAllItems
+	case *CreateObject:
+		tagged["type"] = ActionType_CreateObject
+	case *UpdateObject:
+		tagged["type"] = ActionType_UpdateObject
+	case *DeleteObject:
+		tagged["type"] = ActionType_DeleteObject
+	case *DeleteAllObjects:
+		tagged["type"] = ActionType_DeleteAllObjects
 	}
 
 	return json.Marshal(&tagged)
@@ -253,14 +291,14 @@ func (a *Action) UnmarshalJSONInternallyTagged(data []byte) error {
 	var v IsAction
 	// note: `exhaustive` linter will catch if we miss a case here
 	switch tag.Type {
-	case ActionType_CreateItem:
-		v = &CreateItem{}
-	case ActionType_UpdateItem:
-		v = &UpdateItem{}
-	case ActionType_DeleteItem:
-		v = &DeleteItem{}
-	case ActionType_DeleteAllItems:
-		v = &DeleteAllItems{}
+	case ActionType_CreateObject:
+		v = new(CreateObject)
+	case ActionType_UpdateObject:
+		v = new(UpdateObject)
+	case ActionType_DeleteObject:
+		v = new(DeleteObject)
+	case ActionType_DeleteAllObjects:
+		v = new(DeleteAllObjects)
 	}
 
 	if err := json.Unmarshal(data, v); err != nil {
@@ -284,14 +322,18 @@ func transformAction(action *Action) string {
 
 	// note: `go-check-sumtype` linter will catch if we miss a case here
 	switch v := action.Value().(type) {
-	case *CreateItem:
-		result = fmt.Sprintf("create_item %s %s", v.Item.ID, v.Item.Name)
-	case *UpdateItem:
-		result = fmt.Sprintf("update_item %s %s", v.Item.ID, v.Item.Name)
-	case *DeleteItem:
-		result = fmt.Sprintf("delete_item %s", v.ID)
-	case *DeleteAllItems:
-		result = "delete_all_items"
+	case *CreateObject:
+		result = fmt.Sprintf(
+			"create_object %s %s %s", v.Object.Type, v.Object.ID, v.Object.Name,
+		)
+	case *UpdateObject:
+		result = fmt.Sprintf(
+			"update_object %s %s %s", v.Object.Type, v.Object.ID, v.Object.Name,
+		)
+	case *DeleteObject:
+		result = fmt.Sprintf("delete_object %s", v.ID)
+	case *DeleteAllObjects:
+		result = "delete_all_objects"
 	}
 
 	return result
@@ -299,10 +341,18 @@ func transformAction(action *Action) string {
 
 func exampleActions() []Action {
 	return []Action{
-		NewAction(&CreateItem{Item: Item{ID: "1", Name: "item1"}}),
-		NewAction(&UpdateItem{Item: Item{ID: "1", Name: "item1 updated"}}),
-		NewAction(&DeleteItem{ID: "1"}),
-		NewAction(&DeleteAllItems{}),
+		NewAction(&CreateObject{Object: Item{
+			Type: ObjectType_User,
+			ID:   "1",
+			Name: "user1",
+		}}),
+		NewAction(&UpdateObject{Object: Item{
+			Type: ObjectType_User,
+			ID:   "1",
+			Name: "user1 updated",
+		}}),
+		NewAction(&DeleteObject{ID: "1"}),
+		NewAction(&DeleteAllObjects{}),
 	}
 }
 

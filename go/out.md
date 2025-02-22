@@ -3,25 +3,27 @@
 ```json
 [
   {
-    "item": {
+    "object": {
       "id": "1",
-      "name": "item1"
+      "name": "user1",
+      "type": "user"
     },
-    "type": "create_item"
+    "type": "create_object"
   },
   {
-    "item": {
+    "object": {
       "id": "1",
-      "name": "item1 updated"
+      "name": "user1 updated",
+      "type": "user"
     },
-    "type": "update_item"
+    "type": "update_object"
   },
   {
     "id": "1",
-    "type": "delete_item"
+    "type": "delete_object"
   },
   {
-    "type": "delete_all_items"
+    "type": "delete_all_objects"
   }
 ]
 ```
@@ -29,18 +31,18 @@
 ## Debug
 
 ```go
-&main.CreateItem{Item:main.Item{ID:"1", Name:"item1"}}
-&main.UpdateItem{Item:main.Item{ID:"1", Name:"item1 updated"}}
-&main.DeleteItem{ID:"1"}
-&main.DeleteAllItems{}
+&main.CreateObject{Object:main.Item{Type:0, ID:"1", Name:"user1"}}
+&main.UpdateObject{Object:main.Item{Type:0, ID:"1", Name:"user1 updated"}}
+&main.DeleteObject{ID:"1"}
+&main.DeleteAllObjects{}
 ```
 
 ## Transformed
 
 ```
-create_item 1 item1
-update_item 1 item1 updated
-delete_item 1
-delete_all_items
+create_object user 1 user1
+update_object user 1 user1 updated
+delete_object 1
+delete_all_objects
 ```
 

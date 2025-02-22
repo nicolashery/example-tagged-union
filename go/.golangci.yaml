@@ -1,7 +1,8 @@
 linters:
   enable:
-  - exhaustive
-  - gochecksumtype
+    - exhaustive
+    - gochecksumtype
+    - exhaustruct
 linters-settings:
   exhaustive:
     check:
