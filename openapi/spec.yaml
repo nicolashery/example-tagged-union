@@ -1,167 +1,86 @@
 openapi: 3.0.0
 info:
-  title: Directory API
+  title: Example API
   version: 1.0.0
 paths:
-  /operations:
+  /actions:
     post:
-      summary: Add operation
+      summary: Add an action
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Operation"
-      responses:
-        "201":
-          description: Operation created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Operation"
-    get:
-      summary: List operations
+              $ref: "#/components/schemas/Action"
       responses:
         "200":
-          description: A list of operations
+          description: Action performed
+    get:
+      summary: List actions
+      responses:
+        "200":
+          description: A list of actions
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ListOperationsResponse"
+                $ref: "#/components/schemas/ListActionsResponse"
 components:
   schemas:
-    ListOperationsResponse:
+    ListActionsResponse:
       type: object
       properties:
-        operations:
+        actions:
           type: array
           items:
-            $ref: "#/components/schemas/Operation"
-    Operation:
+            $ref: "#/components/schemas/Action"
+    Action:
       type: object
       discriminator:
         propertyName: type
         mapping:
-          "create_object": "#/components/schemas/CreateObjectOperation"
-          "update_object": "#/components/schemas/UpdateObjectOperation"
-          "delete_object": "#/components/schemas/DeleteObjectOperation"
-          "delete_all_objects": "#/components/schemas/DeleteAllObjectsOperation"
-          "create_relation": "#/components/schemas/CreateRelationOperation"
-          "delete_relation": "#/components/schemas/DeleteRelationOperation"
-          "delete_all_relations": "#/components/schemas/DeleteAllRelationsOperation"
+          "create_object": "#/components/schemas/CreateObject"
+          "update_object": "#/components/schemas/UpdateObject"
+          "delete_object": "#/components/schemas/DeleteObject"
+          "delete_all_objects": "#/components/schemas/DeleteAllObjects"
       oneOf:
-        - $ref: "#/components/schemas/CreateObjectOperation"
-        - $ref: "#/components/schemas/UpdateObjectOperation"
-        - $ref: "#/components/schemas/DeleteObjectOperation"
-        - $ref: "#/components/schemas/DeleteAllObjectsOperation"
-        - $ref: "#/components/schemas/CreateRelationOperation"
-        - $ref: "#/components/schemas/DeleteRelationOperation"
-        - $ref: "#/components/schemas/DeleteAllRelationsOperation"
-    CreateObjectOperationWrapper:
-      type: object
-      properties:
-        type:
-          type: string
-        value:
-          $ref: "#/components/schemas/CreateObjectOperation"
-    UpdateObjectOperationWrapper:
-      type: object
-      properties:
-        type:
-          type: string
-        value:
-          $ref: "#/components/schemas/UpdateObjectOperation"
-    DeleteObjectOperationWrapper:
-      type: object
-      properties:
-        type:
-          type: string
-        value:
-          $ref: "#/components/schemas/DeleteObjectOperation"
-    CreateRelationOperationWrapper:
-      type: object
-      properties:
-        type:
-          type: string
-        value:
-          $ref: "#/components/schemas/CreateRelationOperation"
-    DeleteRelationOperationWrapper:
-      type: object
-      properties:
-        type:
-          type: string
-        value:
-          $ref: "#/components/schemas/DeleteRelationOperation"
-    CreateObjectOperation:
+        - $ref: "#/components/schemas/CreateObject"
+        - $ref: "#/components/schemas/UpdateObject"
+        - $ref: "#/components/schemas/DeleteObject"
+        - $ref: "#/components/schemas/DeleteAllObjects"
+    CreateObject:
       type: object
       properties:
         type:
           type: string
         object:
-          $ref: "#/components/schemas/DirectoryObject"
-    UpdateObjectOperation:
+          $ref: "#/components/schemas/Object"
+    UpdateObject:
       type: object
       properties:
         type:
           type: string
         object:
-          $ref: "#/components/schemas/DirectoryObject"
-    DeleteObjectOperation:
+          $ref: "#/components/schemas/Object"
+    DeleteObject:
       type: object
       properties:
         type:
           type: string
-        objectType:
-          $ref: "#/components/schemas/ObjectType"
-        objectId:
+        id:
           type: string
-    DeleteAllObjectsOperation:
+    DeleteAllObjects:
       type: object
       properties:
         type:
           type: string
-    CreateRelationOperation:
-      type: object
-      properties:
-        type:
-          type: string
-        relation:
-          $ref: "#/components/schemas/DirectoryRelation"
-    DeleteRelationOperation:
-      type: object
-      properties:
-        type:
-          type: string
-        relation:
-          $ref: "#/components/schemas/DirectoryRelation"
-    DeleteAllRelationsOperation:
-      type: object
-      properties:
-        type:
-          type: string
-    DirectoryObject:
+    Object:
       type: object
       properties:
         type:
           $ref: "#/components/schemas/ObjectType"
         id:
           type: string
-        properties:
-          type: object
-          additionalProperties:
-            type: string
-    DirectoryRelation:
-      type: object
-      properties:
-        objectType:
-          $ref: "#/components/schemas/ObjectType"
-        objectId:
-          type: string
-        relation:
-          type: string
-        subjectType:
-          $ref: "#/components/schemas/ObjectType"
-        subjectId:
+        name:
           type: string
     ObjectType:
       type: string
