@@ -178,7 +178,7 @@ main = do
       mapM_ print actions
       putStrLn "```\n"
 
-  -- Transformed
+  -- Transform
   putStrLn "## Transformed\n"
   putStrLn "```"
   mapM_ (putStrLn . T.unpack . transformAction) exampleActions
