@@ -1,0 +1,57 @@
+edition = "2023";
+
+package api;
+
+service Service {
+  rpc AddAction(AddActionRequest) returns (AddActionResponse) {}
+  rpc ListActions(ListActionsRequest) returns (ListActionsResponse) {}
+}
+
+enum ObjectType {
+  OBJECT_TYPE_UNSPECIFIED = 0;
+  OBJECT_TYPE_USER = 1;
+  OBJECT_TYPE_GROUP = 2;
+}
+
+message Object {
+  ObjectType type = 1;
+  string id = 2;
+  string name = 3;
+}
+
+message CreateObject {
+  Object object = 1;
+}
+
+message UpdateObject {
+  Object object = 1;
+}
+
+message DeleteObject {
+  string object_id = 1;
+}
+
+message DeleteAllObjects {}
+
+message Action {
+  oneof value {
+    CreateObject create_object = 1;
+    UpdateObject update_object = 2;
+    DeleteObject delete_object = 3;
+    DeleteAllObjects delete_all_objects = 4;
+  }
+}
+
+message AddActionRequest {
+  Action action = 1;
+}
+
+message AddActionResponse {
+  bool success = 1;
+}
+
+message ListActionsRequest {}
+
+message ListActionsResponse {
+  repeated Action actions = 1;
+}
