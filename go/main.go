@@ -53,7 +53,7 @@ func (t ObjectType) GoString() string {
 	return result
 }
 
-type Item struct {
+type Object struct {
 	Type ObjectType `json:"type"`
 	ID   string     `json:"id"`
 	Name string     `json:"name"`
@@ -111,13 +111,13 @@ type IsAction interface {
 }
 
 type CreateObject struct {
-	Object Item `json:"object"`
+	Object Object `json:"object"`
 }
 
 func (*CreateObject) isAction() {}
 
 type UpdateObject struct {
-	Object Item `json:"object"`
+	Object Object `json:"object"`
 }
 
 func (*UpdateObject) isAction() {}
@@ -226,12 +226,12 @@ func transformAction(action *Action) string {
 
 func exampleActions() []Action {
 	return []Action{
-		NewAction(&CreateObject{Object: Item{
+		NewAction(&CreateObject{Object: Object{
 			Type: ObjectType_User,
 			ID:   "1",
 			Name: "user1",
 		}}),
-		NewAction(&UpdateObject{Object: Item{
+		NewAction(&UpdateObject{Object: Object{
 			Type: ObjectType_User,
 			ID:   "1",
 			Name: "user1 updated",

@@ -31,8 +31,8 @@
 ## Debug
 
 ```go
-&main.CreateObject{Object:main.Item{Type:ObjectType_User, ID:"1", Name:"user1"}}
-&main.UpdateObject{Object:main.Item{Type:ObjectType_User, ID:"1", Name:"user1 updated"}}
+&main.CreateObject{Object:main.Object{Type:ObjectType_User, ID:"1", Name:"user1"}}
+&main.UpdateObject{Object:main.Object{Type:ObjectType_User, ID:"1", Name:"user1 updated"}}
 &main.DeleteObject{ID:"1"}
 &main.DeleteAllObjects{}
 ```
