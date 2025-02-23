@@ -1,4 +1,4 @@
-module Main (main, test, run) where
+module Main (main) where
 
 import Data.Aeson
   ( FromJSON (parseJSON),
@@ -17,13 +17,9 @@ import Data.Aeson
   )
 import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Aeson.Types (Parser)
-import Data.ByteString.Lazy qualified as LBS
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
+import Data.ByteString.Lazy.Char8 qualified as LBS
 import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Text.Encoding qualified as E
-import Data.Text.IO qualified as TIO
 import GHC.Generics (Generic, Rep)
 
 data ObjectType
@@ -42,245 +38,107 @@ objectTypeToText v = case v of
   ObjectTypeUser -> "user"
   ObjectTypeGroup -> "group"
 
-data DirectoryObject = DirectoryObject
-  { directoryObjectType :: ObjectType,
-    directoryObjectId :: Text,
-    directoryObjectProperties :: Map Text Text
+data Object = Object
+  { objectType :: ObjectType,
+    objectId :: Text,
+    objectName :: Text
   }
   deriving (Show, Generic)
 
-instance FromJSON DirectoryObject where
-  parseJSON = defaultParseJSON "directoryObject"
+instance FromJSON Object where
+  parseJSON = defaultParseJSON "object"
 
-instance ToJSON DirectoryObject where
-  toJSON = defaultToJSON "directoryObject"
+instance ToJSON Object where
+  toJSON = defaultToJSON "object"
 
-data DirectoryRelation = DirectoryRelation
-  { directoryRelationObjectType :: ObjectType,
-    directoryRelationObjectId :: Text,
-    directoryRelationRelation :: Text,
-    directoryRelationSubjectType :: ObjectType,
-    directoryRelationSubjectId :: Text
+data CreateObject = CreateObject
+  { createObjectObject :: Object
   }
   deriving (Show, Generic)
 
-instance FromJSON DirectoryRelation where
-  parseJSON = defaultParseJSON "directoryRelation"
+instance FromJSON CreateObject where
+  parseJSON = defaultParseJSON "createObject"
 
-instance ToJSON DirectoryRelation where
-  toJSON = defaultToJSON "directoryRelation"
+instance ToJSON CreateObject where
+  toJSON = defaultToJSON "createObject"
 
-data CreateObjectOperation = CreateObjectOperation
-  { createObjectOperationObject :: DirectoryObject
+data UpdateObject = UpdateObject
+  { updateObjectObject :: Object
   }
   deriving (Show, Generic)
 
-instance FromJSON CreateObjectOperation where
-  parseJSON = defaultParseJSON "createObjectOperation"
+instance FromJSON UpdateObject where
+  parseJSON = defaultParseJSON "updateObject"
 
-instance ToJSON CreateObjectOperation where
-  toJSON = defaultToJSON "createObjectOperation"
+instance ToJSON UpdateObject where
+  toJSON = defaultToJSON "updateObject"
 
-data UpdateObjectOperation = UpdateObjectOperation
-  { updateObjectOperationObject :: DirectoryObject
+data DeleteObject = DeleteObject
+  { deleteObjectId :: Text
   }
   deriving (Show, Generic)
 
-instance FromJSON UpdateObjectOperation where
-  parseJSON = defaultParseJSON "updateObjectOperation"
+instance FromJSON DeleteObject where
+  parseJSON = defaultParseJSON "deleteObject"
 
-instance ToJSON UpdateObjectOperation where
-  toJSON = defaultToJSON "updateObjectOperation"
+instance ToJSON DeleteObject where
+  toJSON = defaultToJSON "deleteObject"
 
-data DeleteObjectOperation = DeleteObjectOperation
-  { deleteObjectOperationObjectType :: ObjectType,
-    deleteObjectOperationObjectId :: Text
-  }
+data Action
+  = ActionCreateObject CreateObject
+  | ActionUpdateObject UpdateObject
+  | ActionDeleteObject DeleteObject
+  | ActionDeleteAllObjects
   deriving (Show, Generic)
 
-instance FromJSON DeleteObjectOperation where
-  parseJSON = defaultParseJSON "deleteObjectOperation"
+instance FromJSON Action where
+  parseJSON = defaultParseJSON "Action"
 
-instance ToJSON DeleteObjectOperation where
-  toJSON = defaultToJSON "deleteObjectOperation"
+instance ToJSON Action where
+  toJSON = defaultToJSON "Action"
 
-data CreateRelationOperation = CreateRelationOperation
-  { createRelationOperationRelation :: DirectoryRelation
-  }
-  deriving (Show, Generic)
+transformAction :: Action -> Text
+transformAction action = case action of
+  ActionCreateObject op ->
+    let obj = createObjectObject op
+     in T.intercalate
+          " "
+          [ "create_object",
+            objectTypeToText (objectType obj),
+            objectId obj,
+            objectName obj
+          ]
+  ActionUpdateObject op ->
+    let obj = updateObjectObject op
+     in T.intercalate
+          " "
+          [ "update_object",
+            objectTypeToText (objectType obj),
+            objectId obj,
+            objectName obj
+          ]
+  ActionDeleteObject op ->
+    "delete_object " <> deleteObjectId op
+  ActionDeleteAllObjects ->
+    "delete_all_objects"
 
-instance FromJSON CreateRelationOperation where
-  parseJSON = defaultParseJSON "createRelationOperation"
-
-instance ToJSON CreateRelationOperation where
-  toJSON = defaultToJSON "createRelationOperation"
-
-data DeleteRelationOperation = DeleteRelationOperation
-  { deleteRelationOperationRelation :: DirectoryRelation
-  }
-  deriving (Show, Generic)
-
-instance FromJSON DeleteRelationOperation where
-  parseJSON = defaultParseJSON "deleteRelationOperation"
-
-instance ToJSON DeleteRelationOperation where
-  toJSON = defaultToJSON "deleteRelationOperation"
-
-data Operation
-  = OperationCreateObject CreateObjectOperation
-  | OperationUpdateObject UpdateObjectOperation
-  | OperationDeleteObject DeleteObjectOperation
-  | OperationDeleteAllObjects
-  | OperationCreateRelation CreateRelationOperation
-  | OperationDeleteRelation DeleteRelationOperation
-  | OperationDeleteAllRelations
-  deriving (Show, Generic)
-
-instance FromJSON Operation where
-  parseJSON = defaultParseJSON "Operation"
-
-instance ToJSON Operation where
-  toJSON = defaultToJSON "Operation"
-
-data IncomingRequest = IncomingRequest
-  { incomingRequestOperations :: [Operation]
-  }
-  deriving (Show, Generic)
-
-instance FromJSON IncomingRequest where
-  parseJSON = defaultParseJSON "incomingRequest"
-
-instance ToJSON IncomingRequest where
-  toJSON = defaultToJSON "incomingRequest"
-
-data OpCode
-  = OpCodeSet
-  | OpCodeDelete
-  deriving (Show, Generic)
-
-opCodeToText :: OpCode -> Text
-opCodeToText v = case v of
-  OpCodeSet -> "set"
-  OpCodeDelete -> "delete"
-
-data DirectoryKind
-  = DirectoryKindObject
-  | DirectoryKindRelation
-  deriving (Show, Generic)
-
-directoryKindToText :: DirectoryKind -> Text
-directoryKindToText v = case v of
-  DirectoryKindObject -> "object"
-  DirectoryKindRelation -> "relation"
-
-objectToOutgoingMessage :: DirectoryObject -> OpCode -> Text
-objectToOutgoingMessage obj opCode =
-  let props = map (\(k, v) -> k <> ": " <> v) (Map.toList $ directoryObjectProperties obj)
-   in T.intercalate "\n" $
-        [ "op_code: " <> opCodeToText opCode,
-          "kind: " <> directoryKindToText DirectoryKindObject,
-          "type: " <> (objectTypeToText $ directoryObjectType obj),
-          "id: " <> directoryObjectId obj
-        ]
-          ++ props
-
-relationToOutgoingMessage :: DirectoryRelation -> OpCode -> Text
-relationToOutgoingMessage rel opCode =
-  T.intercalate
-    "\n"
-    [ "op_code: " <> opCodeToText opCode,
-      "kind: " <> directoryKindToText DirectoryKindRelation,
-      "object_type: " <> (objectTypeToText $ directoryRelationObjectType rel),
-      "object_id: " <> directoryRelationObjectId rel,
-      "relation: " <> directoryRelationRelation rel,
-      "subject_type: " <> (objectTypeToText $ directoryRelationSubjectType rel),
-      "subject_id: " <> directoryRelationSubjectId rel
-    ]
-
-deleteAllOutgoingMessage :: DirectoryKind -> Text
-deleteAllOutgoingMessage kind =
-  T.intercalate
-    "\n"
-    [ "op_code: " <> opCodeToText OpCodeDelete,
-      "kind: " <> directoryKindToText kind,
-      "all: true"
-    ]
-
-transform :: Operation -> Text
-transform operation = case operation of
-  OperationCreateObject op ->
-    objectToOutgoingMessage (createObjectOperationObject op) OpCodeSet
-  OperationUpdateObject op ->
-    objectToOutgoingMessage (updateObjectOperationObject op) OpCodeSet
-  OperationDeleteObject op ->
-    let obj =
-          DirectoryObject
-            { directoryObjectType = deleteObjectOperationObjectType op,
-              directoryObjectId = deleteObjectOperationObjectId op,
-              directoryObjectProperties = Map.empty
-            }
-     in objectToOutgoingMessage obj OpCodeDelete
-  OperationDeleteAllObjects ->
-    deleteAllOutgoingMessage DirectoryKindObject
-  OperationCreateRelation op ->
-    relationToOutgoingMessage (createRelationOperationRelation op) OpCodeSet
-  OperationDeleteRelation op ->
-    relationToOutgoingMessage (deleteRelationOperationRelation op) OpCodeDelete
-  OperationDeleteAllRelations ->
-    deleteAllOutgoingMessage DirectoryKindRelation
-
-transformMany :: [Operation] -> Text
-transformMany ops = T.intercalate "\n\n" (map transform ops)
-
-exampleOperations :: [Operation]
-exampleOperations =
-  [ OperationCreateObject
-      CreateObjectOperation
-        { createObjectOperationObject =
-            DirectoryObject
-              { directoryObjectType = ObjectTypeUser,
-                directoryObjectId = "b478779c-5e5e-4cd7-9bf3-1405326be526",
-                directoryObjectProperties = Map.fromList [("email", "alice@example.com")]
-              }
-        },
-    OperationUpdateObject
-      UpdateObjectOperation
-        { updateObjectOperationObject =
-            DirectoryObject
-              { directoryObjectType = ObjectTypeGroup,
-                directoryObjectId = "2ca6785b-a2ef-4a62-a5f6-5e2314ae59ca",
-                directoryObjectProperties = Map.fromList [("name", "admins")]
-              }
-        },
-    OperationDeleteObject
-      DeleteObjectOperation
-        { deleteObjectOperationObjectType = ObjectTypeGroup,
-          deleteObjectOperationObjectId = "c9b58dd9-b4f6-4325-ba52-3d8d70857363"
-        },
-    OperationDeleteAllObjects,
-    OperationCreateRelation
-      CreateRelationOperation
-        { createRelationOperationRelation =
-            DirectoryRelation
-              { directoryRelationObjectType = ObjectTypeGroup,
-                directoryRelationObjectId = "7910720c-9789-4dd3-83a4-4c65eebd82b3",
-                directoryRelationRelation = "member",
-                directoryRelationSubjectType = ObjectTypeUser,
-                directoryRelationSubjectId = "f32756fd-6a92-4034-8b86-c92cc9d9719f"
-              }
-        },
-    OperationDeleteRelation
-      DeleteRelationOperation
-        { deleteRelationOperationRelation =
-            DirectoryRelation
-              { directoryRelationObjectType = ObjectTypeGroup,
-                directoryRelationObjectId = "c3e65031-7455-45c8-acbd-59ec59d3e769",
-                directoryRelationRelation = "member",
-                directoryRelationSubjectType = ObjectTypeUser,
-                directoryRelationSubjectId = "f50fd4aa3-d632-46d6-92da-21bcc1391287"
-              }
-        },
-    OperationDeleteAllRelations
+exampleActions :: [Action]
+exampleActions =
+  [ ActionCreateObject $
+      CreateObject $
+        Object
+          { objectType = ObjectTypeUser,
+            objectId = "1",
+            objectName = "user1"
+          },
+    ActionUpdateObject $
+      UpdateObject $
+        Object
+          { objectType = ObjectTypeUser,
+            objectId = "1",
+            objectName = "user1 updated"
+          },
+    ActionDeleteAllObjects
   ]
 
 defaultToJSON :: (Generic a, GToJSON Zero (Rep a)) => String -> (a -> Value)
@@ -301,26 +159,27 @@ defaultParseJSON prefix =
         sumEncoding = TaggedObject "type" "value"
       }
 
-lsbToText :: LBS.ByteString -> T.Text
-lsbToText = E.decodeUtf8 . LBS.toStrict
-
-jsonToText :: Value -> T.Text
-jsonToText = lsbToText . encodePretty
-
-prettyPrintJson :: Value -> IO ()
-prettyPrintJson = TIO.putStrLn . jsonToText
-
-test :: IO ()
-test = do
-  prettyPrintJson $ toJSON $ IncomingRequest {incomingRequestOperations = exampleOperations}
-
-run :: IO ()
-run = do
-  contents <- LBS.readFile "in.json"
-  let decodeResult = eitherDecode contents :: Either String IncomingRequest
-  case decodeResult of
-    Left err -> putStrLn $ "Error parsing JSON: " ++ err
-    Right request -> putStrLn $ T.unpack $ transformMany $ incomingRequestOperations request
-
 main :: IO ()
-main = run
+main = do
+  -- JSON encode
+  let json = encodePretty exampleActions
+  putStrLn "## JSON\n"
+  putStrLn "```json"
+  putStrLn $ LBS.unpack json
+  putStrLn "```\n"
+
+  -- JSON decode
+  let decoded = eitherDecode json :: Either String [Action]
+  case decoded of
+    Left err -> putStrLn $ "Error decoding JSON: " ++ err
+    Right actions -> do
+      putStrLn "## Debug\n"
+      putStrLn "```haskell"
+      mapM_ print actions
+      putStrLn "```\n"
+
+  -- Transformed
+  putStrLn "## Transformed\n"
+  putStrLn "```"
+  mapM_ (putStrLn . T.unpack . transformAction) exampleActions
+  putStrLn "```"
