@@ -158,7 +158,7 @@ func (a *Action) MarshalJSON() ([]byte, error) {
 	}
 
 	// note: `go-check-sumtype` linter will catch if we miss a case here
-	switch a.value.(type) {
+	switch v.(type) {
 	case *CreateObject:
 		tagged["type"] = ActionType_CreateObject
 	case *UpdateObject:

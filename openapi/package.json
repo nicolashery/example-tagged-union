@@ -9,7 +9,7 @@
   "scripts": {
     "preview": "redocly preview-docs spec.yaml",
     "openapi-generator-typescript": "openapi-generator-cli generate -g typescript-fetch -i spec.yaml -o gen/openapi-generator/typescript",
-    "openapi-generator-go": "openapi-generator-cli generate -g go -i spec.yaml -o gen/openapi-generator/go",
+    "openapi-generator-go": "openapi-generator-cli generate -g go -i spec.yaml -o gen/openapi-generator/go --additional-properties=useOneOfDiscriminatorLookup=true",
     "swagger-typescript-api": "swagger-typescript-api -p ./spec.yaml -o ./gen/swagger-typescript-api --no-client --union-enums"
   }
 }

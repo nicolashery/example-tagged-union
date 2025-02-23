@@ -24,7 +24,7 @@ const (
 	ActionType_DeleteAllObjects ActionType = "delete_all_objects"
 )
 
-// "Bag of all the things" approach
+// "Bag of all the fields" approach
 type Action struct {
 	Type   ActionType `json:"type"`
 	Object *Object    `json:"item"`
