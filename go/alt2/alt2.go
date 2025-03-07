@@ -50,28 +50,24 @@ type DeleteObject struct {
 type DeleteAllObjects struct{}
 
 func NewActionFromCreateObject(v *CreateObject) Action {
-	//exhaustruct:ignore
 	return Action{
 		createObject: v,
 	}
 }
 
 func NewActionFromUpdateObject(v *UpdateObject) Action {
-	//exhaustruct:ignore
 	return Action{
 		updateObject: v,
 	}
 }
 
 func NewActionFromDeleteObject(v *DeleteObject) Action {
-	//exhaustruct:ignore
 	return Action{
 		deleteObject: v,
 	}
 }
 
 func NewActionFromDeleteAllObjects(v *DeleteAllObjects) Action {
-	//exhaustruct:ignore
 	return Action{
 		deleteAllObjects: v,
 	}
@@ -176,7 +172,7 @@ func (a *Action) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func transformAction(action *Action) string {
+func TransformAction(action *Action) string {
 	var result string
 
 	switch v := action.Value().(type) {
@@ -195,4 +191,67 @@ func transformAction(action *Action) string {
 	}
 
 	return result
+}
+
+func exampleActions() []Action {
+	return []Action{
+		NewActionFromCreateObject(&CreateObject{
+			Object: Object{
+				Type: ObjectType_User,
+				ID:   "1",
+				Name: "user1",
+			},
+		}),
+		NewActionFromUpdateObject(&UpdateObject{
+			Object: Object{
+				Type: ObjectType_User,
+				ID:   "1",
+				Name: "user1 updated",
+			},
+		}),
+		NewActionFromDeleteObject(&DeleteObject{
+			ID: "1",
+		}),
+		NewActionFromDeleteAllObjects(&DeleteAllObjects{}),
+	}
+}
+
+func Run() {
+	actions := exampleActions()
+
+	// JSON encode
+	data, err := json.MarshalIndent(actions, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("## JSON")
+	fmt.Println()
+	fmt.Println("```json")
+	fmt.Println(string(data))
+	fmt.Println("```")
+	fmt.Println()
+
+	// JSON decode
+	actions2 := []Action{}
+	if err := json.Unmarshal(data, &actions2); err != nil {
+		panic(err)
+	}
+	fmt.Println("## Debug")
+	fmt.Println()
+	fmt.Println("```go")
+	for _, action := range actions2 {
+		fmt.Printf("%#v\n", action.Value())
+	}
+	fmt.Println("```")
+	fmt.Println()
+
+	// Transform
+	fmt.Println("## Transformed")
+	fmt.Println()
+	fmt.Println("```")
+	for _, action := range actions {
+		fmt.Println(TransformAction(&action))
+	}
+	fmt.Println("```")
+	fmt.Println()
 }

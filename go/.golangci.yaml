@@ -10,3 +10,7 @@ linters-settings:
       - map
   gochecksumtype:
     default-signifies-exhaustive: false
+  exhaustruct:
+    exclude:
+      - 'example/union/alt1\.Action'
+      - 'example/union/alt2\.Action'
