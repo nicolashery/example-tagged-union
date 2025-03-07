@@ -34,6 +34,33 @@ type Action struct {
 	ID     *string    `json:"id,omitempty"`
 }
 
+func NewActionCreateObject(object *Object) Action {
+	return Action{
+		Type:   ActionType_CreateObject,
+		Object: object,
+	}
+}
+
+func NewActionUpdateObject(object *Object) Action {
+	return Action{
+		Type:   ActionType_UpdateObject,
+		Object: object,
+	}
+}
+
+func NewActionDeleteObject(id string) Action {
+	return Action{
+		Type: ActionType_DeleteObject,
+		ID:   &id,
+	}
+}
+
+func NewActionDeleteAllObjects() Action {
+	return Action{
+		Type: ActionType_DeleteAllObjects,
+	}
+}
+
 func TransformAction(a *Action) string {
 	var result string
 
@@ -56,31 +83,19 @@ func TransformAction(a *Action) string {
 }
 
 func exampleActions() []Action {
-	id := "1"
 	return []Action{
-		{
-			Type: ActionType_CreateObject,
-			Object: &Object{
-				Type: ObjectType_User,
-				ID:   "1",
-				Name: "user1",
-			},
-		},
-		{
-			Type: ActionType_UpdateObject,
-			Object: &Object{
-				Type: ObjectType_User,
-				ID:   "1",
-				Name: "user1 updated",
-			},
-		},
-		{
-			Type: ActionType_DeleteObject,
-			ID:   &id,
-		},
-		{
-			Type: ActionType_DeleteAllObjects,
-		},
+		NewActionCreateObject(&Object{
+			Type: ObjectType_User,
+			ID:   "1",
+			Name: "user1",
+		}),
+		NewActionUpdateObject(&Object{
+			Type: ObjectType_User,
+			ID:   "1",
+			Name: "user1 updated",
+		}),
+		NewActionDeleteObject("1"),
+		NewActionDeleteAllObjects(),
 	}
 }
 
