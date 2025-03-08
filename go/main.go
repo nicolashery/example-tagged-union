@@ -202,7 +202,7 @@ func (a *Action) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func transformAction(action *Action) string {
+func TransformAction(action *Action) string {
 	var result string
 
 	// note: `go-check-sumtype` linter will catch if we miss a case here
@@ -275,7 +275,7 @@ func main() {
 	fmt.Println()
 	fmt.Println("```")
 	for _, action := range actions {
-		fmt.Println(transformAction(&action))
+		fmt.Println(TransformAction(&action))
 	}
 	fmt.Println("```")
 	fmt.Println()
