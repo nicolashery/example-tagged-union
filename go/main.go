@@ -69,23 +69,23 @@ const (
 )
 
 // note: `exhaustive` linter will catch if we miss an entry here
-var ActionTypeStringMap = map[ActionType]string{
+var ActionType_StringMap = map[ActionType]string{
 	ActionType_CreateObject:     "create_object",
 	ActionType_UpdateObject:     "update_object",
 	ActionType_DeleteObject:     "delete_object",
 	ActionType_DeleteAllObjects: "delete_all_objects",
 }
 
-// note: `exhaustive` linter can't catch missing entry here
-var ActionTypeValueMap = map[string]ActionType{
-	"create_object":      ActionType_CreateObject,
-	"update_object":      ActionType_UpdateObject,
-	"delete_object":      ActionType_DeleteObject,
-	"delete_all_objects": ActionType_DeleteAllObjects,
+var ActionType_ValueMap = make(map[string]ActionType, len(ActionType_StringMap))
+
+func init() {
+	for k, v := range ActionType_StringMap {
+		ActionType_ValueMap[v] = k
+	}
 }
 
 func (t ActionType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ActionTypeStringMap[t])
+	return json.Marshal(ActionType_StringMap[t])
 }
 
 func (t *ActionType) UnmarshalJSON(data []byte) error {
@@ -93,7 +93,7 @@ func (t *ActionType) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
-	if v, ok := ActionTypeValueMap[s]; ok {
+	if v, ok := ActionType_ValueMap[s]; ok {
 		*t = v
 		return nil
 	}
@@ -101,7 +101,7 @@ func (t *ActionType) UnmarshalJSON(data []byte) error {
 }
 
 func (t ActionType) String() string {
-	return ActionTypeStringMap[t]
+	return ActionType_StringMap[t]
 }
 
 //sumtype:decl
